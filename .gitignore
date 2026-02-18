@@ -9,3 +9,6 @@ node_modules/
 .DS_Store
 
 .env.local
+
+# Article drafts (local only)
+DOCUMENTATION/linkedin-article*.md
