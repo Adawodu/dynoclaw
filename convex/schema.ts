@@ -13,4 +13,27 @@ export default defineSchema({
     dimensions: 1536,
     filterFields: ["tags"],
   }),
+
+  costSnapshots: defineTable({
+    fetchedAt: v.number(),
+    openrouterBalance: v.number(),
+    openrouterUsed30d: v.number(),
+    openaiCostToday: v.number(),
+    openaiCostMtd: v.number(),
+    gcpEstimateMo: v.number(),
+    error: v.optional(v.string()),
+  }).index("by_fetchedAt", ["fetchedAt"]),
+
+  openrouterActivity: defineTable({
+    date: v.string(),
+    model: v.string(),
+    usageUsd: v.number(),
+    requests: v.number(),
+    promptTokens: v.number(),
+    completionTokens: v.number(),
+    reasoningTokens: v.number(),
+    lastUpdated: v.number(),
+  })
+    .index("by_date", ["date"])
+    .index("by_date_model", ["date", "model"]),
 });
