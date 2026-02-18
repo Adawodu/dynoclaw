@@ -1,4 +1,4 @@
-.PHONY: deploy-openclaw ssh-tunnel openclaw-status
+.PHONY: deploy-openclaw ssh-tunnel openclaw-status convex-dev convex-deploy
 
 # Deploy OpenClaw to GCP Compute Engine
 deploy-openclaw:
@@ -17,3 +17,11 @@ openclaw-status:
 		--zone=$${GCP_ZONE:-us-central1-a} \
 		--project=$${GCP_PROJECT:?Set GCP_PROJECT} \
 		-- openclaw status
+
+# Run Convex dev server (local development)
+convex-dev:
+	npx convex dev
+
+# Deploy Convex functions to production
+convex-deploy:
+	npx convex deploy
