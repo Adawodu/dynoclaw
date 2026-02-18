@@ -6,6 +6,7 @@
 #   - gcloud CLI authenticated with appropriate permissions
 #   - Secrets already created in Secret Manager:
 #       telegram-bot-token, anthropic-api-key, openrouter-api-key
+#       openai-api-key, convex-url
 #       (gmail-credentials, github-token, beehiiv-api-key as needed)
 #
 # Usage:
@@ -120,6 +121,8 @@ GMAIL_CREDENTIALS="$(fetch_secret gmail-credentials || true)"
 GITHUB_TOKEN="$(fetch_secret github-token || true)"
 BEEHIIV_API_KEY="$(fetch_secret beehiiv-api-key || true)"
 OPENROUTER_API_KEY="$(fetch_secret openrouter-api-key || true)"
+OPENAI_API_KEY="$(fetch_secret openai-api-key || true)"
+CONVEX_URL="$(fetch_secret convex-url || true)"
 
 # ── Configure OpenClaw via CLI ────────────────────────────────────
 echo "==> Configuring OpenClaw..."
@@ -130,9 +133,11 @@ openclaw config set channels.telegram.botToken "${TELEGRAM_BOT_TOKEN}" > /dev/nu
 openclaw config set channels.telegram.dmPolicy pairing
 openclaw config set channels.telegram.groupPolicy disabled
 
-# Model fallback chain: free OpenRouter model → Claude as paid fallback
-OPENROUTER_API_KEY="${OPENROUTER_API_KEY}" openclaw models set openrouter/qwen/qwen3-vl-30b-a3b-thinking
+# Model fallback chain: free OpenRouter models → Claude as paid fallback
+OPENROUTER_API_KEY="${OPENROUTER_API_KEY}" openclaw models set openrouter/minimax/minimax-m2.5
 openclaw models fallbacks clear
+openclaw models fallbacks add openrouter/qwen/qwen3.5-397b-a17b
+openclaw models fallbacks add openrouter/qwen/qwen3-vl-30b-a3b-thinking
 openclaw models fallbacks add anthropic/claude-sonnet-4-5-20250929
 
 # Generate a gateway auth token on first run only
@@ -149,6 +154,8 @@ GMAIL_CREDENTIALS=${GMAIL_CREDENTIALS}
 GITHUB_TOKEN=${GITHUB_TOKEN}
 BEEHIIV_API_KEY=${BEEHIIV_API_KEY}
 OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+OPENAI_API_KEY=${OPENAI_API_KEY}
+CONVEX_URL=${CONVEX_URL}
 ENVFILE
 chmod 600 /etc/openclaw.env
 
@@ -177,6 +184,31 @@ systemctl restart openclaw
 echo "==> OpenClaw gateway started"
 STARTUP_EOF
 
+# ── Install plugin on VM via SSH + SCP ───────────────────────────────
+install_plugin() {
+  local PLUGIN_SRC="${SCRIPT_DIR}/../../plugins/convex-knowledge"
+  local PLUGIN_DEST="/root/.openclaw/extensions/convex-knowledge"
+
+  echo "==> Creating plugin directory on VM..."
+  gcloud compute ssh "${VM_NAME}" \
+    --zone="${ZONE}" --project="${PROJECT}" \
+    -- "mkdir -p ${PLUGIN_DEST}"
+
+  echo "==> Copying plugin files to VM..."
+  gcloud compute scp \
+    "${PLUGIN_SRC}/package.json" \
+    "${PLUGIN_SRC}/index.ts" \
+    "${PLUGIN_SRC}/openclaw.plugin.json" \
+    "${VM_NAME}:${PLUGIN_DEST}/" \
+    --zone="${ZONE}" --project="${PROJECT}"
+
+  echo "==> Installing plugin dependencies and enabling..."
+  CONVEX_URL="$(gcloud secrets versions access latest --secret=convex-url --project="${PROJECT}")"
+  gcloud compute ssh "${VM_NAME}" \
+    --zone="${ZONE}" --project="${PROJECT}" \
+    -- "cd ${PLUGIN_DEST} && npm install --omit=dev && openclaw plugins enable convex-knowledge --config 'convexUrl=${CONVEX_URL}' && systemctl restart openclaw"
+}
+
 # ── Create or reset VM ───────────────────────────────────────────────
 echo "==> Creating VM: ${VM_NAME}..."
 gcloud compute instances describe "${VM_NAME}" \
@@ -198,6 +230,11 @@ gcloud compute instances describe "${VM_NAME}" \
   --tags=openclaw \
   --metadata-from-file=startup-script="${STARTUP_FILE}" \
   --no-address
+
+# Wait for startup script to finish, then install plugin
+echo "==> Waiting for VM startup script to complete..."
+sleep 90
+install_plugin
 
 echo ""
 echo "==> Deploy complete!"

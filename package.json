@@ -1,0 +1,12 @@
+{
+  "name": "claw-teammate",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "convex:dev": "npx convex dev",
+    "convex:deploy": "npx convex deploy"
+  },
+  "dependencies": {
+    "convex": "^1.21.0"
+  }
+}
