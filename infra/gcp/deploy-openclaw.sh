@@ -210,7 +210,7 @@ install_convex_plugin() {
   CONVEX_URL="$(gcloud secrets versions access latest --secret=convex-url --project="${PROJECT}")"
   gcloud compute ssh "${VM_NAME}" \
     --zone="${ZONE}" --project="${PROJECT}" \
-    -- "sudo cp /tmp/convex-knowledge-plugin/* ${PLUGIN_DEST}/ && sudo bash -c 'cd ${PLUGIN_DEST} && npm install --omit=dev && openclaw plugins enable convex-knowledge --config \"convexUrl=${CONVEX_URL}\" && systemctl restart openclaw'"
+    -- "sudo cp /tmp/convex-knowledge-plugin/* ${PLUGIN_DEST}/ && sudo bash -c 'cd ${PLUGIN_DEST} && npm install --omit=dev && openclaw plugins enable convex-knowledge && openclaw config set plugins.entries.convex-knowledge.config.convexUrl \"${CONVEX_URL}\" && systemctl restart openclaw'"
 }
 
 # ── Install Postiz plugin on VM via SSH + SCP ─────────────────────────
@@ -239,7 +239,7 @@ install_postiz_plugin() {
   POSTIZ_API_KEY="$(gcloud secrets versions access latest --secret=postiz-api-key --project="${PROJECT}")"
   gcloud compute ssh "${VM_NAME}" \
     --zone="${ZONE}" --project="${PROJECT}" \
-    -- "sudo cp /tmp/postiz-plugin/* ${PLUGIN_DEST}/ && sudo bash -c 'cd ${PLUGIN_DEST} && npm install --omit=dev && openclaw plugins enable postiz --config \"postizUrl=${POSTIZ_URL}\" --config \"postizApiKey=${POSTIZ_API_KEY}\" && systemctl restart openclaw'"
+    -- "sudo cp /tmp/postiz-plugin/* ${PLUGIN_DEST}/ && sudo bash -c 'cd ${PLUGIN_DEST} && npm install --omit=dev && openclaw plugins enable postiz && openclaw config set plugins.entries.postiz.config.postizUrl \"${POSTIZ_URL}\" && openclaw config set plugins.entries.postiz.config.postizApiKey \"${POSTIZ_API_KEY}\" && systemctl restart openclaw'"
 }
 
 # ── Install Beehiiv plugin on VM via SSH + SCP ───────────────────────────
@@ -268,7 +268,7 @@ install_beehiiv_plugin() {
   BEEHIIV_PUB_ID="$(gcloud secrets versions access latest --secret=beehiiv-publication-id --project="${PROJECT}")"
   gcloud compute ssh "${VM_NAME}" \
     --zone="${ZONE}" --project="${PROJECT}" \
-    -- "sudo cp /tmp/beehiiv-plugin/* ${PLUGIN_DEST}/ && sudo bash -c 'cd ${PLUGIN_DEST} && npm install --omit=dev && openclaw plugins enable beehiiv --config \"beehiivApiKey=${BEEHIIV_API_KEY}\" --config \"beehiivPublicationId=${BEEHIIV_PUB_ID}\" && systemctl restart openclaw'"
+    -- "sudo cp /tmp/beehiiv-plugin/* ${PLUGIN_DEST}/ && sudo bash -c 'cd ${PLUGIN_DEST} && npm install --omit=dev && openclaw plugins enable beehiiv && openclaw config set plugins.entries.beehiiv.config.beehiivApiKey \"${BEEHIIV_API_KEY}\" && openclaw config set plugins.entries.beehiiv.config.beehiivPublicationId \"${BEEHIIV_PUB_ID}\" && systemctl restart openclaw'"
 }
 
 # ── Install all skills on VM via single tar + SCP + SSH ──────────────
