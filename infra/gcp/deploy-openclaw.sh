@@ -5,9 +5,9 @@
 # Prerequisites:
 #   - gcloud CLI authenticated with appropriate permissions
 #   - Secrets already created in Secret Manager:
-#       telegram-bot-token, anthropic-api-key, openrouter-api-key
+#       telegram-bot-token, anthropic-api-key, google-ai-api-key,
 #       openai-api-key, convex-url
-#       (gmail-credentials, github-token, beehiiv-api-key as needed)
+#       (gmail-credentials, github-token, beehiiv-api-key, postiz-url, postiz-api-key as needed)
 #
 # Usage:
 #   GCP_PROJECT=my-project bash infra/gcp/deploy-openclaw.sh
@@ -120,7 +120,7 @@ ANTHROPIC_API_KEY="$(fetch_secret anthropic-api-key)"
 GMAIL_CREDENTIALS="$(fetch_secret gmail-credentials || true)"
 GITHUB_TOKEN="$(fetch_secret github-token || true)"
 BEEHIIV_API_KEY="$(fetch_secret beehiiv-api-key || true)"
-OPENROUTER_API_KEY="$(fetch_secret openrouter-api-key || true)"
+GOOGLE_AI_API_KEY="$(fetch_secret google-ai-api-key)"
 OPENAI_API_KEY="$(fetch_secret openai-api-key || true)"
 CONVEX_URL="$(fetch_secret convex-url || true)"
 
@@ -133,12 +133,11 @@ openclaw config set channels.telegram.botToken "${TELEGRAM_BOT_TOKEN}" > /dev/nu
 openclaw config set channels.telegram.dmPolicy pairing
 openclaw config set channels.telegram.groupPolicy disabled
 
-# Model fallback chain: free OpenRouter models → Claude as paid fallback
-OPENROUTER_API_KEY="${OPENROUTER_API_KEY}" openclaw models set openrouter/minimax/minimax-m2.5
+# Model fallback chain: direct provider APIs (no OpenRouter)
+GOOGLE_AI_API_KEY="${GOOGLE_AI_API_KEY}" openclaw models set google/gemini-2.5-flash
 openclaw models fallbacks clear
-openclaw models fallbacks add openrouter/qwen/qwen3.5-397b-a17b
-openclaw models fallbacks add openrouter/qwen/qwen3-vl-30b-a3b-thinking
-openclaw models fallbacks add anthropic/claude-sonnet-4-5-20250929
+ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY}" openclaw models fallbacks add anthropic/claude-sonnet-4-5-20250929
+OPENAI_API_KEY="${OPENAI_API_KEY}" openclaw models fallbacks add openai/gpt-4o-mini
 
 # Generate a gateway auth token on first run only
 EXISTING_TOKEN="$(openclaw config get gateway.auth.token 2>/dev/null || true)"
@@ -150,11 +149,11 @@ fi
 # ── Environment file (secrets not visible in unit file) ──────────
 cat > /etc/openclaw.env <<ENVFILE
 ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+GOOGLE_AI_API_KEY=${GOOGLE_AI_API_KEY}
+OPENAI_API_KEY=${OPENAI_API_KEY}
 GMAIL_CREDENTIALS=${GMAIL_CREDENTIALS}
 GITHUB_TOKEN=${GITHUB_TOKEN}
 BEEHIIV_API_KEY=${BEEHIIV_API_KEY}
-OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-OPENAI_API_KEY=${OPENAI_API_KEY}
 CONVEX_URL=${CONVEX_URL}
 ENVFILE
 chmod 600 /etc/openclaw.env
@@ -171,7 +170,7 @@ Type=simple
 EnvironmentFile=/etc/openclaw.env
 ExecStartPre=/usr/bin/env openclaw security audit --fix
 ExecStart=/usr/bin/env openclaw gateway run --bind loopback
-Restart=on-failure
+Restart=always
 RestartSec=10
 
 [Install]
@@ -209,6 +208,70 @@ install_plugin() {
     -- "cd ${PLUGIN_DEST} && npm install --omit=dev && openclaw plugins enable convex-knowledge --config 'convexUrl=${CONVEX_URL}' && systemctl restart openclaw"
 }
 
+# ── Install Postiz plugin on VM via SSH + SCP ─────────────────────────
+install_postiz_plugin() {
+  local PLUGIN_SRC="${SCRIPT_DIR}/../../plugins/postiz"
+  local PLUGIN_DEST="/root/.openclaw/extensions/postiz"
+
+  echo "==> Creating Postiz plugin directory on VM..."
+  gcloud compute ssh "${VM_NAME}" \
+    --zone="${ZONE}" --project="${PROJECT}" \
+    -- "mkdir -p ${PLUGIN_DEST}"
+
+  echo "==> Copying Postiz plugin files to VM..."
+  gcloud compute scp \
+    "${PLUGIN_SRC}/package.json" \
+    "${PLUGIN_SRC}/index.ts" \
+    "${PLUGIN_SRC}/openclaw.plugin.json" \
+    "${VM_NAME}:${PLUGIN_DEST}/" \
+    --zone="${ZONE}" --project="${PROJECT}"
+
+  echo "==> Installing Postiz plugin dependencies and enabling..."
+  POSTIZ_URL="$(gcloud secrets versions access latest --secret=postiz-url --project="${PROJECT}")"
+  POSTIZ_API_KEY="$(gcloud secrets versions access latest --secret=postiz-api-key --project="${PROJECT}")"
+  gcloud compute ssh "${VM_NAME}" \
+    --zone="${ZONE}" --project="${PROJECT}" \
+    -- "cd ${PLUGIN_DEST} && npm install --omit=dev && openclaw plugins enable postiz --config 'postizUrl=${POSTIZ_URL}' --config 'postizApiKey=${POSTIZ_API_KEY}' && systemctl restart openclaw"
+}
+
+# ── Install skills on VM via SSH + SCP ────────────────────────────────
+install_skills() {
+  # ── daily-briefing ──
+  local SKILL_SRC="${SCRIPT_DIR}/../../skills/daily-briefing"
+  local SKILL_DEST="/root/.openclaw/skills/daily-briefing"
+
+  echo "==> Creating skill directory on VM..."
+  gcloud compute ssh "${VM_NAME}" \
+    --zone="${ZONE}" --project="${PROJECT}" \
+    -- "mkdir -p ${SKILL_DEST}"
+
+  echo "==> Copying daily-briefing skill to VM..."
+  gcloud compute scp \
+    "${SKILL_SRC}/SKILL.md" \
+    "${VM_NAME}:${SKILL_DEST}/" \
+    --zone="${ZONE}" --project="${PROJECT}"
+
+  echo "==> Registering daily-briefing cron job..."
+  gcloud compute ssh "${VM_NAME}" \
+    --zone="${ZONE}" --project="${PROJECT}" \
+    -- "openclaw cron add --name 'daily-briefing' --cron '0 13 * * *' --message '/daily-briefing' || echo 'Cron job may already exist'"
+
+  # ── job-hunter ──
+  local JH_SRC="${SCRIPT_DIR}/../../skills/job-hunter"
+  local JH_DEST="/root/.openclaw/skills/job-hunter"
+
+  echo "==> Creating job-hunter skill directory on VM..."
+  gcloud compute ssh "${VM_NAME}" \
+    --zone="${ZONE}" --project="${PROJECT}" \
+    -- "mkdir -p ${JH_DEST}"
+
+  echo "==> Copying job-hunter skill to VM..."
+  gcloud compute scp \
+    "${JH_SRC}/SKILL.md" \
+    "${VM_NAME}:${JH_DEST}/" \
+    --zone="${ZONE}" --project="${PROJECT}"
+}
+
 # ── Create or reset VM ───────────────────────────────────────────────
 echo "==> Creating VM: ${VM_NAME}..."
 gcloud compute instances describe "${VM_NAME}" \
@@ -235,6 +298,8 @@ gcloud compute instances describe "${VM_NAME}" \
 echo "==> Waiting for VM startup script to complete..."
 sleep 90
 install_plugin
+install_postiz_plugin
+install_skills
 
 echo ""
 echo "==> Deploy complete!"
