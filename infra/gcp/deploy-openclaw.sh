@@ -268,6 +268,25 @@ install_video_gen_plugin() {
     -- "sudo cp /tmp/video-gen-plugin/* ${PLUGIN_DEST}/ && sudo bash -c 'cd ${PLUGIN_DEST} && npm install --omit=dev'"
 }
 
+install_image_gen_plugin() {
+  local PLUGIN_SRC="${SCRIPT_DIR}/../../plugins/image-gen"
+  local PLUGIN_DEST="/root/.openclaw/extensions/image-gen"
+
+  echo "==> Installing Image Gen plugin files..."
+  gcloud compute ssh "${VM_NAME}" \
+    --zone="${ZONE}" --project="${PROJECT}" \
+    -- "sudo mkdir -p ${PLUGIN_DEST} && mkdir -p /tmp/image-gen-plugin"
+  gcloud compute scp \
+    "${PLUGIN_SRC}/package.json" \
+    "${PLUGIN_SRC}/index.ts" \
+    "${PLUGIN_SRC}/openclaw.plugin.json" \
+    "${VM_NAME}:/tmp/image-gen-plugin/" \
+    --zone="${ZONE}" --project="${PROJECT}"
+  gcloud compute ssh "${VM_NAME}" \
+    --zone="${ZONE}" --project="${PROJECT}" \
+    -- "sudo cp /tmp/image-gen-plugin/* ${PLUGIN_DEST}/ && sudo bash -c 'cd ${PLUGIN_DEST} && npm install --omit=dev'"
+}
+
 # ── Configure all plugins atomically ─────────────────────────────────
 # Fetches all secrets, then patches openclaw.json with plugin entries in
 # one shot. This avoids the global validation issue with `openclaw config set`.
@@ -294,7 +313,8 @@ config.plugins.entries = Object.assign(config.plugins.entries || {}, {
   "convex-knowledge": { enabled: true, config: { convexUrl: process.env.CONVEX_URL } },
   "postiz": { enabled: true, config: { postizUrl: process.env.POSTIZ_URL, postizApiKey: process.env.POSTIZ_API_KEY } },
   "beehiiv": { enabled: true, config: { beehiivApiKey: process.env.BEEHIIV_API_KEY, beehiivPublicationId: process.env.BEEHIIV_PUB_ID } },
-  "video-gen": { enabled: true, config: { geminiApiKey: process.env.GOOGLE_AI_API_KEY, openaiApiKey: process.env.OPENAI_API_KEY } }
+  "video-gen": { enabled: true, config: { geminiApiKey: process.env.GOOGLE_AI_API_KEY, openaiApiKey: process.env.OPENAI_API_KEY } },
+  "image-gen": { enabled: true, config: { geminiApiKey: process.env.GOOGLE_AI_API_KEY, openaiApiKey: process.env.OPENAI_API_KEY } }
 });
 fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
 console.log("Plugin configs written successfully");
@@ -372,6 +392,7 @@ install_convex_plugin
 install_postiz_plugin
 install_beehiiv_plugin
 install_video_gen_plugin
+install_image_gen_plugin
 configure_all_plugins
 install_skills
 
