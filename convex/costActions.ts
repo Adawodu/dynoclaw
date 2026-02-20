@@ -44,18 +44,18 @@ export const fetchAndStoreCosts = action({
 
           for (const item of items) {
             const usageUsd =
-              (item.total_cost ?? 0) +
-              (item.native_tokens_cost ?? 0);
+              (item.usage ?? 0) +
+              (item.byok_usage_inference ?? 0);
             openrouterUsed30d += usageUsd;
 
             await ctx.runMutation(api.costs.upsertActivity, {
               date: item.date ?? new Date().toISOString().split("T")[0],
               model: item.model ?? "unknown",
               usageUsd,
-              requests: item.num_requests ?? 0,
-              promptTokens: item.tokens_prompt ?? 0,
-              completionTokens: item.tokens_completion ?? 0,
-              reasoningTokens: item.tokens_reasoning ?? 0,
+              requests: item.requests ?? 0,
+              promptTokens: item.prompt_tokens ?? 0,
+              completionTokens: item.completion_tokens ?? 0,
+              reasoningTokens: item.reasoning_tokens ?? 0,
             });
           }
         } else {
