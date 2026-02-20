@@ -18,11 +18,13 @@ echo "==> Fetching secrets from Secret Manager..."
 TELEGRAM_BOT_TOKEN="$(fetch_secret telegram-bot-token)"
 ANTHROPIC_API_KEY="$(fetch_secret anthropic-api-key)"
 
+GOOGLE_AI_API_KEY="$(fetch_secret google-ai-api-key)"
+
 # Optional secrets — leave empty if not yet created
 GMAIL_CREDENTIALS="$(fetch_secret gmail-credentials || true)"
 GITHUB_TOKEN="$(fetch_secret github-token || true)"
 BEEHIIV_API_KEY="$(fetch_secret beehiiv-api-key || true)"
-OPENROUTER_API_KEY="$(fetch_secret openrouter-api-key || true)"
+OPENAI_API_KEY="$(fetch_secret openai-api-key || true)"
 
 # ── Write config with real values ────────────────────────────────────
 echo "==> Writing OpenClaw config..."
@@ -33,10 +35,11 @@ chmod 600 "${CONFIG_FILE}"
 
 # ── Export env vars for integrations ─────────────────────────────────
 export ANTHROPIC_API_KEY
+export GOOGLE_AI_API_KEY
+export OPENAI_API_KEY
 export GMAIL_CREDENTIALS
 export GITHUB_TOKEN
 export BEEHIIV_API_KEY
-export OPENROUTER_API_KEY
 
 # ── Security audit ───────────────────────────────────────────────────
 echo "==> Running security audit..."
