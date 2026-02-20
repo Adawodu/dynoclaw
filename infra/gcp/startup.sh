@@ -36,6 +36,7 @@ chmod 600 "${CONFIG_FILE}"
 # ── Export env vars for integrations ─────────────────────────────────
 export ANTHROPIC_API_KEY
 export GOOGLE_AI_API_KEY
+export GEMINI_API_KEY="${GOOGLE_AI_API_KEY}"  # OpenClaw reads GEMINI_API_KEY
 export OPENAI_API_KEY
 export GMAIL_CREDENTIALS
 export GITHUB_TOKEN
