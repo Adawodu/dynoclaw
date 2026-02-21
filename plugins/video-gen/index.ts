@@ -47,7 +47,7 @@ async function veoGenerate(
     throw new Error(`Veo submit error ${res.status}: ${text}`);
   }
   const data = await res.json();
-  return data.name as string; // operation name
+  return data.name as string;
 }
 
 async function veoPoll(apiKey: string, operationName: string) {
@@ -74,7 +74,6 @@ async function soraGenerate(
   duration: number,
   aspectRatio: string,
 ) {
-  // Sora accepts 4, 8, or 12 seconds — clamp to nearest
   const seconds = duration <= 4 ? 4 : duration <= 8 ? 8 : 12;
 
   const formData = new FormData();
@@ -93,7 +92,7 @@ async function soraGenerate(
     throw new Error(`Sora submit error ${res.status}: ${text}`);
   }
   const data = await res.json();
-  return data.id as string; // video job id
+  return data.id as string;
 }
 
 async function soraPoll(apiKey: string, videoId: string) {
@@ -107,6 +106,175 @@ async function soraPoll(apiKey: string, videoId: string) {
   return res.json();
 }
 
+// ── Google Drive helpers (OAuth2 refresh token) ───────────────────────
+async function getDriveAccessToken(
+  clientId: string,
+  clientSecret: string,
+  refreshToken: string,
+): Promise<string> {
+  const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: refreshToken,
+      grant_type: "refresh_token",
+    }).toString(),
+  });
+  if (!tokenRes.ok) {
+    const text = await tokenRes.text();
+    throw new Error(`Drive token error ${tokenRes.status}: ${text}`);
+  }
+  const tokenData = await tokenRes.json();
+  return tokenData.access_token;
+}
+
+async function uploadToDriveResumable(
+  accessToken: string,
+  folderId: string,
+  fileName: string,
+  mimeType: string,
+  data: ArrayBuffer,
+): Promise<{ id: string; webViewLink: string }> {
+  const initRes = await fetch(
+    "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id,webViewLink",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+        "X-Upload-Content-Type": mimeType,
+        "X-Upload-Content-Length": String(data.byteLength),
+      },
+      body: JSON.stringify({
+        name: fileName,
+        parents: [folderId],
+      }),
+    },
+  );
+  if (!initRes.ok) {
+    const text = await initRes.text();
+    throw new Error(`Drive resumable init error ${initRes.status}: ${text}`);
+  }
+
+  const uploadUrl = initRes.headers.get("Location");
+  if (!uploadUrl) {
+    throw new Error("No upload URL in resumable init response");
+  }
+
+  const uploadRes = await fetch(uploadUrl, {
+    method: "PUT",
+    headers: {
+      "Content-Type": mimeType,
+      "Content-Length": String(data.byteLength),
+    },
+    body: data,
+  });
+  if (!uploadRes.ok) {
+    const text = await uploadRes.text();
+    throw new Error(`Drive upload error ${uploadRes.status}: ${text}`);
+  }
+  const file = await uploadRes.json();
+
+  await fetch(
+    `https://www.googleapis.com/drive/v3/files/${file.id}/permissions`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ role: "reader", type: "anyone" }),
+    },
+  );
+
+  return { id: file.id, webViewLink: file.webViewLink };
+}
+
+// ── Media persistence helper ──────────────────────────────────────────
+async function persistVideo(opts: {
+  convexUrl?: string;
+  driveFolderId?: string;
+  driveClientId?: string;
+  driveClientSecret?: string;
+  driveRefreshToken?: string;
+  sourceUrl: string;
+  mimeType: string;
+  prompt: string;
+  provider: string;
+  authHeader?: string;
+  apiKeyHeader?: string;
+}): Promise<{ convexUrl?: string; driveUrl?: string }> {
+  const result: { convexUrl?: string; driveUrl?: string } = {};
+
+  // Store to Convex
+  if (opts.convexUrl) {
+    try {
+      const body: Record<string, string> = {
+        sourceUrl: opts.sourceUrl,
+        mimeType: opts.mimeType,
+        prompt: opts.prompt,
+        provider: opts.provider,
+      };
+      if (opts.authHeader) body.authHeader = opts.authHeader;
+      if (opts.apiKeyHeader) body.apiKeyHeader = opts.apiKeyHeader;
+
+      const convexRes = await fetch(
+        `${opts.convexUrl}/api/action`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ path: "mediaActions:storeVideo", args: body }),
+        },
+      );
+      if (convexRes.ok) {
+        const data = await convexRes.json();
+        result.convexUrl = data.value?.url;
+      } else {
+        const text = await convexRes.text();
+        console.error(`Convex video action failed ${convexRes.status}: ${text}`);
+      }
+    } catch (err) {
+      console.error("Convex video storage failed:", err);
+    }
+  }
+
+  // Upload to Google Drive (resumable, OAuth2 refresh token)
+  if (opts.driveFolderId && opts.driveClientId && opts.driveClientSecret && opts.driveRefreshToken) {
+    try {
+      const headers: Record<string, string> = {};
+      if (opts.authHeader) headers["Authorization"] = opts.authHeader;
+      if (opts.apiKeyHeader) headers["x-goog-api-key"] = opts.apiKeyHeader;
+
+      const res = await fetch(opts.sourceUrl, { headers });
+      if (!res.ok) throw new Error(`Failed to fetch video: ${res.status}`);
+      const videoBuffer = await res.arrayBuffer();
+
+      const accessToken = await getDriveAccessToken(
+        opts.driveClientId,
+        opts.driveClientSecret,
+        opts.driveRefreshToken,
+      );
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const fileName = `video-${opts.provider}-${timestamp}.mp4`;
+
+      const driveFile = await uploadToDriveResumable(
+        accessToken,
+        opts.driveFolderId,
+        fileName,
+        opts.mimeType,
+        videoBuffer,
+      );
+      result.driveUrl = driveFile.webViewLink;
+    } catch (err) {
+      console.error("Drive video upload failed:", err);
+    }
+  }
+
+  return result;
+}
+
 // ── Plugin ─────────────────────────────────────────────────────────────
 const videoGenPlugin = {
   id: "video-gen",
@@ -118,12 +286,22 @@ const videoGenPlugin = {
     properties: {
       geminiApiKey: { type: "string" as const },
       openaiApiKey: { type: "string" as const },
+      convexUrl: { type: "string" as const },
+      driveFolderId: { type: "string" as const },
+      driveClientId: { type: "string" as const },
+      driveClientSecret: { type: "string" as const },
+      driveRefreshToken: { type: "string" as const },
     },
     required: ["geminiApiKey"],
   },
   register(pluginApi: any) {
     const geminiApiKey = pluginApi.pluginConfig?.geminiApiKey;
     const openaiApiKey = pluginApi.pluginConfig?.openaiApiKey;
+    const convexUrl = pluginApi.pluginConfig?.convexUrl;
+    const driveFolderId = pluginApi.pluginConfig?.driveFolderId;
+    const driveClientId = pluginApi.pluginConfig?.driveClientId;
+    const driveClientSecret = pluginApi.pluginConfig?.driveClientSecret;
+    const driveRefreshToken = pluginApi.pluginConfig?.driveRefreshToken;
 
     if (!geminiApiKey) {
       pluginApi.logger?.warn?.("geminiApiKey not configured for video-gen");
@@ -137,7 +315,8 @@ const videoGenPlugin = {
       description:
         "Generate a video from a text prompt. Uses Google Veo by default (fast & cheap). " +
         "Optionally specify provider='sora' for OpenAI Sora. Polls until complete or timeout (3 min), " +
-        "then returns the video URL or a job ID for later status checks.",
+        "then returns the video URL or a job ID for later status checks. " +
+        "Videos are automatically persisted to Convex (permanent URL) and Google Drive (shareable link) if configured.",
       parameters: Type.Object({
         prompt: Type.String({
           description: "Text description of the video to generate",
@@ -150,7 +329,8 @@ const videoGenPlugin = {
         ),
         duration: Type.Optional(
           Type.Number({
-            description: "Video duration in seconds (default: 6). Veo supports 4/6/8, Sora supports 4/8/12.",
+            description:
+              "Video duration in seconds (default: 6). Veo supports 4/6/8, Sora supports 4/8/12.",
           }),
         ),
         aspectRatio: Type.Optional(
@@ -181,7 +361,6 @@ const videoGenPlugin = {
               aspectRatio,
             );
 
-            // Poll for completion
             const deadline = Date.now() + POLL_TIMEOUT_MS;
             while (Date.now() < deadline) {
               await sleep(POLL_INTERVAL_MS);
@@ -189,13 +368,30 @@ const videoGenPlugin = {
 
               if (status.status === "completed") {
                 const downloadUrl = `${SORA_BASE}/${videoId}/content`;
+
+                const stored = await persistVideo({
+                  convexUrl,
+                  driveFolderId,
+                  driveClientId,
+                  driveClientSecret,
+                  driveRefreshToken,
+                  sourceUrl: downloadUrl,
+                  mimeType: "video/mp4",
+                  prompt: params.prompt,
+                  provider: "sora",
+                  authHeader: `Bearer ${openaiApiKey}`,
+                });
+
                 return json({
                   provider: "sora",
                   status: "completed",
                   videoId,
-                  downloadUrl,
-                  message:
-                    "Video generated successfully. Use the download URL to fetch the MP4 (requires auth header).",
+                  videoUrl: stored.convexUrl || downloadUrl,
+                  convexUrl: stored.convexUrl,
+                  driveUrl: stored.driveUrl,
+                  message: stored.convexUrl
+                    ? "Video generated and stored permanently."
+                    : "Video generated. Use the download URL to fetch the MP4 (requires auth header).",
                 });
               }
               if (status.status === "failed") {
@@ -203,7 +399,10 @@ const videoGenPlugin = {
                   provider: "sora",
                   status: "failed",
                   videoId,
-                  error: status.error || status.failure_reason || "Generation failed",
+                  error:
+                    status.error ||
+                    status.failure_reason ||
+                    "Generation failed",
                 });
               }
             }
@@ -225,7 +424,6 @@ const videoGenPlugin = {
             aspectRatio,
           );
 
-          // Poll for completion
           const deadline = Date.now() + POLL_TIMEOUT_MS;
           while (Date.now() < deadline) {
             await sleep(POLL_INTERVAL_MS);
@@ -236,13 +434,30 @@ const videoGenPlugin = {
                 result.response?.generateVideoResponse?.generatedSamples;
               if (samples && samples.length > 0) {
                 const videoUri = samples[0].video?.uri;
+
+                const stored = await persistVideo({
+                  convexUrl,
+                  driveFolderId,
+                  driveClientId,
+                  driveClientSecret,
+                  driveRefreshToken,
+                  sourceUrl: videoUri,
+                  mimeType: "video/mp4",
+                  prompt: params.prompt,
+                  provider: "veo",
+                  apiKeyHeader: geminiApiKey,
+                });
+
                 return json({
                   provider: "veo",
                   status: "completed",
                   operationName,
-                  videoUrl: videoUri,
-                  message:
-                    "Video generated successfully. The URL is accessible for 48 hours (requires x-goog-api-key header to download).",
+                  videoUrl: stored.convexUrl || videoUri,
+                  convexUrl: stored.convexUrl,
+                  driveUrl: stored.driveUrl,
+                  message: stored.convexUrl
+                    ? "Video generated and stored permanently."
+                    : "Video generated. The URL is accessible for 48 hours (requires x-goog-api-key header).",
                 });
               }
               return json({
@@ -305,12 +520,29 @@ const videoGenPlugin = {
             const status = await soraPoll(openaiApiKey, params.jobId);
 
             if (status.status === "completed") {
+              const downloadUrl = `${SORA_BASE}/${params.jobId}/content`;
+
+              const stored = await persistVideo({
+                convexUrl,
+                driveFolderId,
+                driveClientId,
+                driveClientSecret,
+                driveRefreshToken,
+                sourceUrl: downloadUrl,
+                mimeType: "video/mp4",
+                prompt: "Video (persisted on status check)",
+                provider: "sora",
+                authHeader: `Bearer ${openaiApiKey}`,
+              });
+
               return json({
                 provider: "sora",
                 status: "completed",
                 videoId: params.jobId,
-                downloadUrl: `${SORA_BASE}/${params.jobId}/content`,
-                message: "Video is ready for download.",
+                videoUrl: stored.convexUrl || downloadUrl,
+                convexUrl: stored.convexUrl,
+                driveUrl: stored.driveUrl,
+                message: "Video is ready.",
               });
             }
             return json({
@@ -328,12 +560,29 @@ const videoGenPlugin = {
             const samples =
               result.response?.generateVideoResponse?.generatedSamples;
             if (samples && samples.length > 0) {
+              const videoUri = samples[0].video?.uri;
+
+              const stored = await persistVideo({
+                convexUrl,
+                driveFolderId,
+                driveClientId,
+                driveClientSecret,
+                driveRefreshToken,
+                sourceUrl: videoUri,
+                mimeType: "video/mp4",
+                prompt: "Video (persisted on status check)",
+                provider: "veo",
+                apiKeyHeader: geminiApiKey,
+              });
+
               return json({
                 provider: "veo",
                 status: "completed",
                 operationName: params.jobId,
-                videoUrl: samples[0].video?.uri,
-                message: "Video is ready. URL valid for 48 hours.",
+                videoUrl: stored.convexUrl || videoUri,
+                convexUrl: stored.convexUrl,
+                driveUrl: stored.driveUrl,
+                message: "Video is ready.",
               });
             }
             return json({
