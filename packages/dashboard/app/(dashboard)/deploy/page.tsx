@@ -46,7 +46,7 @@ function loadSavedState(): { state: WizardState; step: number } {
     if (raw) {
       const saved = JSON.parse(raw);
       return {
-        state: { ...defaultState, ...saved.state },
+        state: { ...defaultState, ...saved.state, apiKeys: {} },
         step: saved.step ?? 0,
       };
     }
@@ -82,7 +82,7 @@ export default function DeployPage() {
   useEffect(() => {
     if (!initialized) return;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ state, step }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ state: { ...state, apiKeys: {} }, step }));
     } catch {
       // Storage full or unavailable
     }

@@ -29,7 +29,16 @@ export async function GET(req: NextRequest) {
     if (!instance) {
       return NextResponse.json({ status: "NOT_FOUND" });
     }
-    return NextResponse.json({ status: instance.status });
+    const networkInterfaces = instance.networkInterfaces as
+      | Array<{ networkIP?: string }>
+      | undefined;
+    return NextResponse.json({
+      status: instance.status,
+      lastStartTimestamp: instance.lastStartTimestamp || null,
+      lastStopTimestamp: instance.lastStopTimestamp || null,
+      internalIp: networkInterfaces?.[0]?.networkIP || null,
+      creationTimestamp: instance.creationTimestamp || null,
+    });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });

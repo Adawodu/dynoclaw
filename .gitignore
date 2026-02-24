@@ -22,6 +22,7 @@ packages/create-claw-teammate/dist/
 packages/create-claw-teammate/plugin-files/
 packages/create-claw-teammate/skill-files/
 
-# Dashboard
+# Next.js build output
+.next/
 packages/dashboard/.next/
 packages/dashboard/.env.local

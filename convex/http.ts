@@ -112,7 +112,7 @@ function renderDashboard(
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Claw Teammate — Cost Dashboard</title>
+<title>DynoClaw — Cost Dashboard</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -146,7 +146,7 @@ function renderDashboard(
 </head>
 <body>
 <div class="wrap">
-  <h1>Claw Teammate — Costs</h1>
+  <h1>DynoClaw — Costs</h1>
   <div class="subtitle">${s ? `Last updated: ${ago(s.fetchedAt)} (${new Date(s.fetchedAt).toUTCString()})` : "No data yet — trigger a fetch from the Convex dashboard"}</div>
 
   ${s?.error ? `<div class="card error">Errors: ${escapeHtml(s.error)}</div>` : ""}

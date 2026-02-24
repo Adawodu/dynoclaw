@@ -14,8 +14,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { RotateCw, AlertTriangle } from "lucide-react";
+import { RotateCw, AlertTriangle, Plus, Key } from "lucide-react";
 import { useState, useCallback } from "react";
 import { maskApiKey } from "@/lib/formatters";
 import type { Id } from "@convex/_generated/dataModel";
@@ -28,6 +35,17 @@ interface ApiKey {
   deploymentId: Id<"deployments">;
 }
 
+const KNOWN_SECRETS = [
+  { name: "telegram-bot-token", label: "Telegram Bot Token", description: "Get from @BotFather on Telegram" },
+  { name: "postiz-api-key", label: "Postiz API Key", description: "From your Postiz dashboard" },
+  { name: "beehiiv-api-key", label: "Beehiiv API Key", description: "From Beehiiv settings > Integrations" },
+  { name: "beehiiv-publication-id", label: "Beehiiv Publication ID", description: "From Beehiiv settings" },
+  { name: "twitter-bearer-token", label: "Twitter Bearer Token", description: "From Twitter Developer Portal" },
+  { name: "google-api-key", label: "Google API Key", description: "From Google Cloud Console" },
+  { name: "brave-search-api-key", label: "Brave Search API Key", description: "From Brave Search API dashboard" },
+  { name: "openrouter-api-key", label: "OpenRouter API Key", description: "From openrouter.ai" },
+];
+
 export default function ApiKeysPage() {
   const deployments = useQuery(api.deployments.list);
   const deployment = deployments?.[0];
@@ -35,6 +53,7 @@ export default function ApiKeysPage() {
     api.apiKeyRegistry.listByDeployment,
     deployment ? { deploymentId: deployment._id } : "skip"
   );
+  const registerKey = useMutation(api.apiKeyRegistry.register);
   const markRotated = useMutation(api.apiKeyRegistry.markRotated);
 
   const [rotatingKey, setRotatingKey] = useState<ApiKey | null>(null);
@@ -42,12 +61,65 @@ export default function ApiKeysPage() {
   const [rotating, setRotating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Add key state
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [addSecretName, setAddSecretName] = useState("");
+  const [addCustomName, setAddCustomName] = useState("");
+  const [addValue, setAddValue] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+
+  const existingNames = new Set(keys?.map((k: ApiKey) => k.secretName) ?? []);
+  const availableSecrets = KNOWN_SECRETS.filter((s) => !existingNames.has(s.name));
+
+  const handleAdd = useCallback(async () => {
+    if (!deployment || !addValue.trim()) return;
+    const secretName = addSecretName === "__custom" ? addCustomName.trim() : addSecretName;
+    if (!secretName) return;
+
+    setAdding(true);
+    setAddError(null);
+    try {
+      // Create the secret in GCP Secret Manager
+      const res = await fetch("/api/gcp/secrets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          project: deployment.gcpProjectId,
+          secretName,
+          value: addValue.trim(),
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to create secret");
+      }
+
+      // Register in Convex
+      await registerKey({
+        deploymentId: deployment._id,
+        secretName,
+        maskedValue: maskApiKey(addValue.trim()),
+      });
+
+      setAddDialogOpen(false);
+      setAddSecretName("");
+      setAddCustomName("");
+      setAddValue("");
+      setRestartPrompt(true);
+    } catch (err) {
+      setAddError(err instanceof Error ? err.message : "Failed to add key");
+    } finally {
+      setAdding(false);
+    }
+  }, [deployment, addSecretName, addCustomName, addValue, registerKey]);
+
   const handleRotate = useCallback(async () => {
     if (!rotatingKey || !deployment || !newValue.trim()) return;
     setRotating(true);
     setError(null);
     try {
-      // Update the secret in GCP Secret Manager
       const res = await fetch("/api/gcp/secrets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -63,13 +135,11 @@ export default function ApiKeysPage() {
         throw new Error(data.error || "Failed to update secret");
       }
 
-      // Update the registry in Convex with new masked value
       await markRotated({
         id: rotatingKey._id,
         maskedValue: maskApiKey(newValue.trim()),
       });
 
-      // Offer to restart VM so it picks up the new key
       setRotatingKey(null);
       setNewValue("");
       setRestartPrompt(true);
@@ -125,7 +195,22 @@ export default function ApiKeysPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">API Keys</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">API Keys</h1>
+        <Button
+          size="sm"
+          onClick={() => {
+            setAddDialogOpen(true);
+            setAddError(null);
+            setAddSecretName("");
+            setAddCustomName("");
+            setAddValue("");
+          }}
+        >
+          <Plus className="mr-1 h-3 w-3" />
+          Add Key
+        </Button>
+      </div>
 
       <Card>
         <CardHeader>
@@ -135,9 +220,15 @@ export default function ApiKeysPage() {
         </CardHeader>
         <CardContent>
           {(keys?.length ?? 0) === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No API keys registered.
-            </p>
+            <div className="flex flex-col items-center gap-3 py-8">
+              <Key className="h-10 w-10 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">
+                No API keys registered yet.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Click &quot;Add Key&quot; to configure your first integration.
+              </p>
+            </div>
           ) : (
             <table className="w-full text-sm">
               <thead>
@@ -183,6 +274,76 @@ export default function ApiKeysPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Add key dialog */}
+      <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add API Key</DialogTitle>
+            <DialogDescription>
+              Select a secret type and enter the value. It will be stored
+              securely in GCP Secret Manager.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Secret Type</Label>
+              <Select value={addSecretName} onValueChange={setAddSecretName}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a secret..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableSecrets.map((s) => (
+                    <SelectItem key={s.name} value={s.name}>
+                      {s.label}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="__custom">Custom secret name</SelectItem>
+                </SelectContent>
+              </Select>
+              {addSecretName && addSecretName !== "__custom" && (
+                <p className="text-xs text-muted-foreground">
+                  {KNOWN_SECRETS.find((s) => s.name === addSecretName)?.description}
+                </p>
+              )}
+              {addSecretName === "__custom" && (
+                <Input
+                  placeholder="my-custom-secret"
+                  value={addCustomName}
+                  onChange={(e) => setAddCustomName(e.target.value)}
+                />
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label>Secret Value</Label>
+              <Input
+                type="password"
+                placeholder="Paste your API key..."
+                value={addValue}
+                onChange={(e) => setAddValue(e.target.value)}
+              />
+            </div>
+            {addError && (
+              <p className="text-sm text-destructive">{addError}</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAdd}
+              disabled={
+                adding ||
+                !addValue.trim() ||
+                (!addSecretName || (addSecretName === "__custom" && !addCustomName.trim()))
+              }
+            >
+              {adding ? "Adding..." : "Add Secret"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Rotate key dialog */}
       <Dialog
@@ -230,7 +391,7 @@ export default function ApiKeysPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Restart prompt after rotation */}
+      {/* Restart prompt after add/rotation */}
       <Dialog
         open={restartPrompt}
         onOpenChange={(open) => !open && setRestartPrompt(false)}
@@ -242,7 +403,7 @@ export default function ApiKeysPage() {
               Restart VM?
             </DialogTitle>
             <DialogDescription>
-              The API key has been rotated in GCP Secret Manager. Restart the VM
+              The secret has been saved to GCP Secret Manager. Restart the VM
               so your AI teammate picks up the new key?
             </DialogDescription>
           </DialogHeader>

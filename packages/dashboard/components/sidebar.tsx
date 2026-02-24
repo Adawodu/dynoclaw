@@ -14,15 +14,20 @@ import {
   Key,
   ScrollText,
   Settings,
+  CreditCard,
+  ShieldCheck,
   Menu,
+  FileText,
 } from "lucide-react";
+import { useQuery } from "convex/react";
+import { api } from "@convex/_generated/api";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetTrigger, SheetContent } from "@/components/ui/sheet";
 import { useState } from "react";
 
 const navItems = [
-  { href: "/", label: "Overview", icon: LayoutDashboard },
+  { href: "/overview", label: "Overview", icon: LayoutDashboard },
   { href: "/deploy", label: "Deploy", icon: Rocket },
   { href: "/costs", label: "Costs", icon: DollarSign },
   { href: "/media", label: "Media", icon: Image },
@@ -32,10 +37,17 @@ const navItems = [
   { href: "/api-keys", label: "API Keys", icon: Key },
   { href: "/logs", label: "Logs", icon: ScrollText },
   { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/billing", label: "Billing", icon: CreditCard },
+];
+
+const adminItems = [
+  { href: "/admin/pricing", label: "Pricing", icon: ShieldCheck },
+  { href: "/admin/cms", label: "CMS", icon: FileText },
 ];
 
 function NavContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
+  const isAdminUser = useQuery(api.admin.isAdmin, {});
 
   return (
     <>
@@ -46,16 +58,13 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
           onClick={onNavigate}
         >
           <Zap className="h-5 w-5 text-primary" />
-          <span>Claw Teammate</span>
+          <span>DynoClaw</span>
         </Link>
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto p-2">
         {navItems.map((item) => {
-          const isActive =
-            item.href === "/"
-              ? pathname === "/"
-              : pathname.startsWith(item.href);
+          const isActive = pathname.startsWith(item.href);
           return (
             <Link
               key={item.href}
@@ -73,6 +82,34 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
             </Link>
           );
         })}
+
+        {isAdminUser && (
+          <>
+            <div className="my-2 border-t" />
+            <p className="px-3 py-1 text-xs font-medium text-muted-foreground">
+              Admin
+            </p>
+            {adminItems.map((item) => {
+              const isActive = pathname.startsWith(item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={onNavigate}
+                  className={cn(
+                    "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+                    isActive
+                      ? "bg-accent text-accent-foreground"
+                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                  )}
+                >
+                  <item.icon className="h-4 w-4" />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </>
+        )}
       </nav>
 
       <div className="border-t p-4">
@@ -116,7 +153,7 @@ export function MobileNav() {
       </Sheet>
       <Link href="/" className="flex items-center gap-2 font-semibold">
         <Zap className="h-5 w-5 text-primary" />
-        <span>Claw Teammate</span>
+        <span>DynoClaw</span>
       </Link>
     </div>
   );
