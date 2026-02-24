@@ -9,7 +9,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 EnvironmentFile=/etc/openclaw.env
-ExecStartPre=/usr/bin/env openclaw security audit --fix
+ExecStartPre=/usr/bin/env openclaw security audit
 ExecStart=/usr/bin/env openclaw gateway run --bind loopback
 Restart=always
 RestartSec=10

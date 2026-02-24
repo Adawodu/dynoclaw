@@ -32,7 +32,10 @@ export const create = mutation({
 export const get = query({
   args: { id: v.id("deployments") },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.id);
+    const userId = await requireUser(ctx);
+    const deployment = await ctx.db.get(args.id);
+    if (!deployment || deployment.userId !== userId) return null;
+    return deployment;
   },
 });
 
@@ -81,6 +84,49 @@ export const remove = mutation({
   },
 });
 
+export const updateBranding = mutation({
+  args: {
+    id: v.id("deployments"),
+    botName: v.string(),
+    personality: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireUser(ctx);
+    const deployment = await ctx.db.get(args.id);
+    if (!deployment || deployment.userId !== userId) {
+      throw new Error("Deployment not found");
+    }
+    await ctx.db.patch(args.id, {
+      branding: {
+        ...deployment.branding,
+        botName: args.botName,
+        personality: args.personality,
+      },
+    });
+  },
+});
+
+export const updateModels = mutation({
+  args: {
+    id: v.id("deployments"),
+    primary: v.string(),
+    fallbacks: v.array(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireUser(ctx);
+    const deployment = await ctx.db.get(args.id);
+    if (!deployment || deployment.userId !== userId) {
+      throw new Error("Deployment not found");
+    }
+    await ctx.db.patch(args.id, {
+      models: {
+        primary: args.primary,
+        fallbacks: args.fallbacks,
+      },
+    });
+  },
+});
+
 export const updateStatus = mutation({
   args: {
     id: v.id("deployments"),
@@ -90,6 +136,11 @@ export const updateStatus = mutation({
     lastHealthStatus: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const userId = await requireUser(ctx);
+    const deployment = await ctx.db.get(args.id);
+    if (!deployment || deployment.userId !== userId) {
+      throw new Error("Deployment not found");
+    }
     const { id, ...patch } = args;
     await ctx.db.patch(id, patch);
   },

@@ -119,6 +119,33 @@ export default defineSchema({
     .index("by_deploymentId", ["deploymentId"])
     .index("by_userId", ["userId"]),
 
+  subscriptions: defineTable({
+    userId: v.string(),
+    stripeCustomerId: v.string(),
+    stripeSubscriptionId: v.optional(v.string()),
+    stripePriceId: v.optional(v.string()),
+    status: v.string(),
+    plan: v.optional(v.string()),
+    currentPeriodEnd: v.optional(v.number()),
+    trialEnd: v.optional(v.number()),
+    cancelAtPeriodEnd: v.optional(v.boolean()),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_stripeCustomerId", ["stripeCustomerId"])
+    .index("by_stripeSubscriptionId", ["stripeSubscriptionId"]),
+
+  pricingPlans: defineTable({
+    slug: v.string(),
+    name: v.string(),
+    priceAmountCents: v.number(),
+    stripePriceId: v.optional(v.string()),
+    description: v.string(),
+    features: v.array(v.string()),
+    highlighted: v.boolean(),
+    sortOrder: v.number(),
+    active: v.boolean(),
+  }).index("by_slug", ["slug"]),
+
   deployJobs: defineTable({
     userId: v.string(),
     deploymentId: v.id("deployments"),
@@ -134,4 +161,30 @@ export default defineSchema({
     .index("by_userId", ["userId"])
     .index("by_deploymentId", ["deploymentId"])
     .index("by_userId_status", ["userId", "status"]),
+
+  // ── CMS tables ────────────────────────────────────────────────────
+
+  cmsPages: defineTable({
+    slug: v.string(),
+    title: v.string(),
+    body: v.string(),
+    published: v.boolean(),
+    sortOrder: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_slug", ["slug"]),
+
+  navLinks: defineTable({
+    label: v.string(),
+    href: v.string(),
+    section: v.string(),
+    placement: v.array(v.string()),
+    sortOrder: v.number(),
+    visible: v.boolean(),
+    isExternal: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_section", ["section"])
+    .index("by_visible", ["visible"]),
 });

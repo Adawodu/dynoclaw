@@ -111,6 +111,7 @@ export async function POST(req: NextRequest) {
       .map(([k]) => k);
 
     const startupScript = generateWebStartupScript({
+      gcpProjectId,
       apiKeys,
       branding,
       models,
@@ -202,32 +203,56 @@ export async function POST(req: NextRequest) {
   }
 }
 
+// Known secrets that may exist in Secret Manager.
+// The startup script always tries to fetch all of them, so re-deploys and
+// reboots work even if the user didn't re-enter keys in the wizard.
+const KNOWN_SECRETS = [
+  "telegram-bot-token",
+  "google-ai-api-key",
+  "openai-api-key",
+  "openrouter-api-key",
+  "anthropic-api-key",
+  "postiz-api-key",
+  "postiz-url",
+  "convex-url",
+  "beehiiv-api-key",
+  "beehiiv-publication-id",
+  "twitter-bearer-token",
+  "brave-search-api-key",
+  "drive-oauth-client-id",
+  "drive-oauth-client-secret",
+  "drive-oauth-refresh-token",
+  "drive-media-folder-id",
+];
+
 function generateWebStartupScript(config: {
+  gcpProjectId: string;
   apiKeys: Record<string, string>;
   branding: { botName: string; personality: string };
   models: { primary: string; fallbacks: string[] };
   enabledPlugins: string[];
   enabledSkills: string[];
 }): string {
-  const secretFetches = Object.keys(config.apiKeys)
-    .filter((k) => config.apiKeys[k])
+  // Build the union of known secrets + any user-provided keys
+  const allSecretNames = [
+    ...new Set([...KNOWN_SECRETS, ...Object.keys(config.apiKeys).filter((k) => config.apiKeys[k])]),
+  ];
+
+  const secretFetches = allSecretNames
     .map((secretName) => {
       const envVar = secretName.toUpperCase().replace(/-/g, "_");
-      return `${envVar}="$(fetch_secret ${secretName})"`;
+      return `${envVar}="$(fetch_secret ${secretName} || true)"`;
     })
     .join("\n");
 
-  const envFileEntries = Object.keys(config.apiKeys)
-    .filter((k) => config.apiKeys[k])
+  const envFileEntries = allSecretNames
     .map((secretName) => {
       const envVar = secretName.toUpperCase().replace(/-/g, "_");
       return `${envVar}=\${${envVar}}`;
     })
     .join("\n");
 
-  const geminiAlias = config.apiKeys["google-ai-api-key"]
-    ? "\nGEMINI_API_KEY=${GOOGLE_AI_API_KEY}"
-    : "";
+  const geminiAlias = "\nGEMINI_API_KEY=${GOOGLE_AI_API_KEY}";
 
   const repoBase = "https://raw.githubusercontent.com/adawodu/claw-teammate/main";
 
@@ -245,21 +270,73 @@ curl -sfL "${repoBase}/plugins/${p}/openclaw.plugin.json" -o "\${DEST}/openclaw.
     )
     .join("\n");
 
-  const pluginConfigs = config.enabledPlugins
-    .map((p) => {
-      const meta = PLUGIN_REGISTRY.find((pm) => pm.id === p);
-      if (!meta) return `# Plugin ${p}: no registry entry found`;
-      const lines = [
-        `openclaw config set plugins.entries.${p}.enabled true 2>/dev/null || true`,
-      ];
-      for (const k of [...meta.requiredKeys, ...meta.optionalKeys]) {
-        lines.push(
-          `openclaw config set plugins.entries.${p}.config.${k.key} "$(fetch_secret ${k.secretName})" 2>/dev/null || true`
-        );
-      }
-      return lines.join("\n");
-    })
-    .join("\n\n");
+  // Build the full plugin entries JSON with ${BASH_VAR} placeholders for secrets
+  const pluginEntries: Record<string, { enabled: boolean; config: Record<string, string> }> = {};
+  for (const p of config.enabledPlugins) {
+    const meta = PLUGIN_REGISTRY.find((pm) => pm.id === p);
+    if (!meta) continue;
+    const pluginCfg: Record<string, string> = {};
+    for (const k of [...meta.requiredKeys, ...meta.optionalKeys]) {
+      const envVar = k.secretName.toUpperCase().replace(/-/g, "_");
+      pluginCfg[k.key] = `\${${envVar}}`;
+    }
+    pluginEntries[p] = { enabled: true, config: pluginCfg };
+  }
+
+  // Build the complete openclaw.json as a JSON string with bash ${VAR} placeholders.
+  // The heredoc (without quotes) will expand these at runtime.
+  const fullConfig = {
+    meta: { lastTouchedVersion: "2026.2.17" },
+    agents: {
+      defaults: {
+        model: {
+          primary: config.models.primary,
+          fallbacks: config.models.fallbacks,
+        },
+        models: Object.fromEntries(
+          [config.models.primary, ...config.models.fallbacks].map((m) => [m, {}])
+        ),
+      },
+    },
+    channels: {
+      telegram: {
+        enabled: true,
+        dmPolicy: "open",
+        botToken: "${TELEGRAM_BOT_TOKEN}",
+        allowFrom: ["*"],
+        groupPolicy: "open",
+      },
+    },
+    gateway: {
+      mode: "local",
+      bind: "loopback",
+      auth: { token: "${GATEWAY_TOKEN}" },
+    },
+    plugins: {
+      allow: config.enabledPlugins,
+      entries: pluginEntries,
+    },
+  };
+  // Stringify and unescape the bash variable placeholders.
+  // JSON.stringify wraps ${VAR} in quotes → "${VAR}" which is correct for heredoc expansion.
+  const configJsonStr = JSON.stringify(fullConfig, null, 2);
+
+  // Auth profile entries for the heredoc builder
+  const authProviders = [
+    { profile: "google:manual", provider: "google", envVar: "GOOGLE_AI_API_KEY" },
+    { profile: "anthropic:manual", provider: "anthropic", envVar: "ANTHROPIC_API_KEY" },
+    { profile: "openai:manual", provider: "openai", envVar: "OPENAI_API_KEY" },
+    { profile: "openrouter:manual", provider: "openrouter", envVar: "OPENROUTER_API_KEY" },
+  ];
+  const authProfileBlocks = authProviders
+    .map(
+      ({ profile, provider, envVar }) => `
+if [ -n "\${${envVar}:-}" ]; then
+  printf '%s"${profile}":{"provider":"${provider}","token":"%s","createdAt":"2026-01-01T00:00:00Z"}' "\${SEP}" "\${${envVar}}" >> /tmp/auth-profiles.json
+  SEP=","
+fi`
+    )
+    .join("");
 
   const skillDownloads = config.enabledSkills
     .map((s) => {
@@ -272,13 +349,6 @@ curl -sfL "${repoBase}/plugins/${p}/openclaw.plugin.json" -o "\${DEST}/openclaw.
 SKILL_DIR="/root/.openclaw/skills/${s}"
 mkdir -p "\${SKILL_DIR}"
 curl -sL "${repoBase}/skills/${s}/SKILL.md" -o "\${SKILL_DIR}/SKILL.md" || true${cronCmd}`;
-    })
-    .join("\n");
-
-  const fallbackSetup = config.models.fallbacks
-    .map((model) => {
-      const envPrefix = getModelEnvPrefix(model);
-      return `${envPrefix} openclaw models fallbacks add ${model}`;
     })
     .join("\n");
 
@@ -299,51 +369,21 @@ if [ ! -f "\${MARKER}" ]; then
   apt-get install -y nodejs
 
   echo "==> Installing OpenClaw..."
-  npm install -g openclaw@latest
+  npm install -g openclaw@2026.2.17
 
   mkdir -p "\${OPENCLAW_DIR}"
   touch "\${MARKER}"
 fi
 
 # ── Fetch secrets ─────────────────────────────────────────────────
+PROJECT_ID="${config.gcpProjectId}"
+
 fetch_secret() {
-  gcloud secrets versions access latest --secret="$1" 2>/dev/null
+  gcloud secrets versions access latest --secret="$1" --project="\${PROJECT_ID}" 2>/dev/null
 }
 
 echo "==> Fetching secrets..."
 ${secretFetches}
-
-# ── Configure OpenClaw ────────────────────────────────────────────
-echo "==> Configuring OpenClaw..."
-openclaw config set gateway.bind loopback
-openclaw config set gateway.mode local
-openclaw config set channels.telegram.enabled true
-openclaw config set channels.telegram.botToken "\${TELEGRAM_BOT_TOKEN}" > /dev/null 2>&1
-openclaw config set channels.telegram.allowFrom '["*"]'
-openclaw config set channels.telegram.dmPolicy open
-openclaw config set channels.telegram.groupPolicy disabled
-
-GOOGLE_AI_API_KEY="\${GOOGLE_AI_API_KEY:-}" openclaw models set ${config.models.primary}
-openclaw models fallbacks clear
-${fallbackSetup}
-
-EXISTING_TOKEN="$(openclaw config get gateway.auth.token 2>/dev/null || true)"
-if [ -z "\${EXISTING_TOKEN}" ] || echo "\${EXISTING_TOKEN}" | grep -q "not found"; then
-  GATEWAY_TOKEN="$(openssl rand -hex 32)"
-  openclaw config set gateway.auth.token "\${GATEWAY_TOKEN}" > /dev/null 2>&1
-fi
-
-# ── Auth profiles (model API keys) ──────────────────────────────
-echo "==> Setting up auth profiles..."
-mkdir -p /root/.openclaw/agents/main/agent
-AUTH_JSON="{"
-[ -n "\${GOOGLE_AI_API_KEY:-}" ] && AUTH_JSON="\${AUTH_JSON}\"google:manual\":{\"apiKey\":\"\${GOOGLE_AI_API_KEY}\"},"
-[ -n "\${ANTHROPIC_API_KEY:-}" ] && AUTH_JSON="\${AUTH_JSON}\"anthropic:manual\":{\"apiKey\":\"\${ANTHROPIC_API_KEY}\"},"
-[ -n "\${OPENAI_API_KEY:-}" ] && AUTH_JSON="\${AUTH_JSON}\"openai:manual\":{\"apiKey\":\"\${OPENAI_API_KEY}\"},"
-[ -n "\${OPENROUTER_API_KEY:-}" ] && AUTH_JSON="\${AUTH_JSON}\"openrouter:manual\":{\"apiKey\":\"\${OPENROUTER_API_KEY}\"},"
-# Remove trailing comma and close
-AUTH_JSON="\$(echo "\${AUTH_JSON}" | sed 's/,\$//')}"
-echo "\${AUTH_JSON}" > /root/.openclaw/agents/main/agent/auth-profiles.json
 
 # ── Environment file ─────────────────────────────────────────────
 cat > /etc/openclaw.env <<ENVFILE
@@ -355,17 +395,28 @@ chmod 600 /etc/openclaw.env
 echo "==> Installing plugins..."
 ${pluginDownloads}
 
-# ── Configure plugins ────────────────────────────────────────────
-echo "==> Configuring plugins..."
-${pluginConfigs}
-
 # ── Install skills ───────────────────────────────────────────────
 echo "==> Installing skills..."
 ${skillDownloads}
 
-# ── Plugin allowlist ─────────────────────────────────────────────
-echo "==> Setting plugin allowlist..."
-openclaw config set plugins.allow '${JSON.stringify(config.enabledPlugins)}' 2>/dev/null || true
+# ── Write full openclaw.json (heredoc with bash var expansion) ───
+echo "==> Writing OpenClaw configuration..."
+GATEWAY_TOKEN="\$(openssl rand -hex 32)"
+mkdir -p /root/.openclaw
+cat > /root/.openclaw/openclaw.json <<CFGEOF
+${configJsonStr}
+CFGEOF
+echo "==> Configuration written"
+
+# ── Write auth profiles ─────────────────────────────────────────
+echo "==> Writing auth profiles..."
+mkdir -p /root/.openclaw/agents/main/agent
+printf '{"version":1,"profiles":{' > /tmp/auth-profiles.json
+SEP=""
+${authProfileBlocks}
+printf '}}' >> /tmp/auth-profiles.json
+mv /tmp/auth-profiles.json /root/.openclaw/agents/main/agent/auth-profiles.json
+echo "==> Auth profiles written"
 
 # ── Systemd unit ─────────────────────────────────────────────────
 cat > /etc/systemd/system/openclaw.service <<UNIT
@@ -377,7 +428,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 EnvironmentFile=/etc/openclaw.env
-ExecStartPre=-/usr/bin/env openclaw security audit --fix
+ExecStartPre=-/usr/bin/env openclaw security audit
 ExecStart=/usr/bin/env openclaw gateway run --bind loopback
 Restart=always
 RestartSec=10
@@ -390,12 +441,15 @@ systemctl daemon-reload
 systemctl enable openclaw
 systemctl restart openclaw
 echo "==> OpenClaw gateway started"
+
+# ── First-boot grace restart ────────────────────────────────────
+# On first boot the gateway starts under heavy I/O from plugin installs.
+# Schedule a one-shot restart after 90s so Telegram polling initializes cleanly.
+if [ ! -f "/opt/openclaw/.grace-restarted" ]; then
+  echo "==> Scheduling grace restart in 90s (first boot)..."
+  (sleep 90 && systemctl restart openclaw && touch /opt/openclaw/.grace-restarted) &
+  disown
+fi
 `;
 }
 
-function getModelEnvPrefix(model: string): string {
-  if (model.startsWith("anthropic/")) return 'ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}"';
-  if (model.startsWith("openai/")) return 'OPENAI_API_KEY="${OPENAI_API_KEY:-}"';
-  if (model.startsWith("google/")) return 'GOOGLE_AI_API_KEY="${GOOGLE_AI_API_KEY:-}"';
-  return "";
-}
