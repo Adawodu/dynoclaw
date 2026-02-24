@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import {
   SignInButton,
   SignUpButton,
@@ -7,6 +8,15 @@ import {
   SignedOut,
 } from "@clerk/nextjs";
 import { Sidebar, MobileNav } from "@/components/sidebar";
+
+function TrialInit() {
+  useEffect(() => {
+    fetch("/api/billing/ensure-trial", { method: "POST" }).catch(() => {
+      // Non-critical — trial will be created on next load
+    });
+  }, []);
+  return null;
+}
 
 export default function DashboardLayout({
   children,
@@ -17,7 +27,7 @@ export default function DashboardLayout({
     <>
       <SignedOut>
         <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-4">
-          <h1 className="text-2xl font-bold">Claw Teammate</h1>
+          <h1 className="text-2xl font-bold">DynoClaw</h1>
           <p className="text-center text-sm text-muted-foreground">
             Sign in to manage your AI teammate
           </p>
@@ -36,6 +46,7 @@ export default function DashboardLayout({
         </div>
       </SignedOut>
       <SignedIn>
+        <TrialInit />
         <div className="flex h-screen flex-col md:flex-row">
           <Sidebar />
           <MobileNav />

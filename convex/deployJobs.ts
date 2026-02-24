@@ -24,7 +24,10 @@ export const enqueue = mutation({
 export const get = query({
   args: { id: v.id("deployJobs") },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.id);
+    const userId = await requireUser(ctx);
+    const job = await ctx.db.get(args.id);
+    if (!job || job.userId !== userId) return null;
+    return job;
   },
 });
 
@@ -38,8 +41,27 @@ export const updateStatus = mutation({
     completedAt: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await requireUser(ctx);
+    const job = await ctx.db.get(args.id);
+    if (!job || job.userId !== userId) {
+      throw new Error("Deploy job not found");
+    }
     const { id, ...patch } = args;
     await ctx.db.patch(id, patch);
+  },
+});
+
+export const listByDeployment = query({
+  args: { deploymentId: v.id("deployments") },
+  handler: async (ctx, args) => {
+    const userId = await requireUser(ctx);
+    const jobs = await ctx.db
+      .query("deployJobs")
+      .withIndex("by_deploymentId", (q) => q.eq("deploymentId", args.deploymentId))
+      .order("desc")
+      .take(10);
+    // Filter to user's own jobs
+    return jobs.filter((j) => j.userId === userId);
   },
 });
 

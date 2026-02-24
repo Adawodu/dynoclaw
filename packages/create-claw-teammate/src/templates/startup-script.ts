@@ -44,15 +44,17 @@ if [ ! -f "\${MARKER}" ]; then
   apt-get install -y nodejs
 
   echo "==> Installing OpenClaw..."
-  npm install -g openclaw@latest
+  npm install -g openclaw@2026.2.17
 
   mkdir -p "\${OPENCLAW_DIR}"
   touch "\${MARKER}"
 fi
 
 # ── Fetch secrets ─────────────────────────────────────────────────
+PROJECT_ID="$(curl -s -H 'Metadata-Flavor: Google' http://metadata.google.internal/computeMetadata/v1/project/project-id)"
+
 fetch_secret() {
-  gcloud secrets versions access latest --secret="$1" 2>/dev/null
+  gcloud secrets versions access latest --secret="$1" --project="\${PROJECT_ID}" 2>/dev/null
 }
 
 echo "==> Fetching secrets..."
@@ -100,7 +102,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 EnvironmentFile=/etc/openclaw.env
-ExecStartPre=/usr/bin/env openclaw security audit --fix
+ExecStartPre=/usr/bin/env openclaw security audit
 ExecStart=/usr/bin/env openclaw gateway run --bind loopback
 Restart=always
 RestartSec=10
@@ -113,6 +115,15 @@ systemctl daemon-reload
 systemctl enable openclaw
 systemctl restart openclaw
 echo "==> OpenClaw gateway started"
+
+# ── First-boot grace restart ────────────────────────────────────
+# On first boot the gateway starts under heavy I/O from plugin installs.
+# Schedule a one-shot restart after 90s so Telegram polling initializes cleanly.
+if [ ! -f "/opt/openclaw/.grace-restarted" ]; then
+  echo "==> Scheduling grace restart in 90s (first boot)..."
+  (sleep 90 && systemctl restart openclaw && touch /opt/openclaw/.grace-restarted) &
+  disown
+fi
 `;
 }
 

@@ -8,7 +8,9 @@
  * @module
  */
 
+import type * as admin from "../admin.js";
 import type * as apiKeyRegistry from "../apiKeyRegistry.js";
+import type * as cmsPages from "../cmsPages.js";
 import type * as costActions from "../costActions.js";
 import type * as costs from "../costs.js";
 import type * as crons from "../crons.js";
@@ -21,8 +23,11 @@ import type * as lib_auth from "../lib/auth.js";
 import type * as lib_embeddings from "../lib/embeddings.js";
 import type * as media from "../media.js";
 import type * as mediaActions from "../mediaActions.js";
+import type * as navLinks from "../navLinks.js";
 import type * as pluginConfigs from "../pluginConfigs.js";
+import type * as pricingPlans from "../pricingPlans.js";
 import type * as skillConfigs from "../skillConfigs.js";
+import type * as subscriptions from "../subscriptions.js";
 
 import type {
   ApiFromModules,
@@ -31,7 +36,9 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  admin: typeof admin;
   apiKeyRegistry: typeof apiKeyRegistry;
+  cmsPages: typeof cmsPages;
   costActions: typeof costActions;
   costs: typeof costs;
   crons: typeof crons;
@@ -44,8 +51,11 @@ declare const fullApi: ApiFromModules<{
   "lib/embeddings": typeof lib_embeddings;
   media: typeof media;
   mediaActions: typeof mediaActions;
+  navLinks: typeof navLinks;
   pluginConfigs: typeof pluginConfigs;
+  pricingPlans: typeof pricingPlans;
   skillConfigs: typeof skillConfigs;
+  subscriptions: typeof subscriptions;
 }>;
 
 /**

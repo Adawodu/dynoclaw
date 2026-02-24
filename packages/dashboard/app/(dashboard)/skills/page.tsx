@@ -16,6 +16,7 @@ import {
 import { SKILL_REGISTRY } from "@claw-teammate/shared";
 import { useState, useCallback } from "react";
 import { RotateCw } from "lucide-react";
+import type { Id } from "@convex/_generated/dataModel";
 
 export default function SkillsPage() {
   const deployments = useQuery(api.deployments.list);
@@ -25,6 +26,7 @@ export default function SkillsPage() {
     deployment ? { deploymentId: deployment._id } : "skip"
   );
   const setSkill = useMutation(api.skillConfigs.set);
+  const updateCron = useMutation(api.skillConfigs.updateCron);
   const [hasChanges, setHasChanges] = useState(false);
   const [syncDialogOpen, setSyncDialogOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -40,6 +42,25 @@ export default function SkillsPage() {
       setHasChanges(true);
     },
     [deployment, setSkill]
+  );
+
+  const handleCronChange = useCallback(
+    async (skillId: string, configId: Id<"skillConfigs"> | undefined, cron: string | undefined) => {
+      if (!deployment) return;
+      if (configId) {
+        await updateCron({ id: configId, cronOverride: cron });
+      } else {
+        // Create the config with the cron override
+        await setSkill({
+          deploymentId: deployment._id,
+          skillId,
+          enabled: false,
+          cronOverride: cron,
+        });
+      }
+      setHasChanges(true);
+    },
+    [deployment, setSkill, updateCron]
   );
 
   const handleSync = useCallback(async () => {
@@ -87,7 +108,7 @@ export default function SkillsPage() {
     );
   }
 
-  type SkillConfig = { skillId: string; enabled: boolean; cronOverride?: string };
+  type SkillConfig = { _id: Id<"skillConfigs">; skillId: string; enabled: boolean; cronOverride?: string };
   const configMap = new Map<string, SkillConfig>(
     (skillConfigs ?? []).map((c: SkillConfig) => [c.skillId, c] as const)
   );
@@ -118,6 +139,9 @@ export default function SkillsPage() {
               enabled={config?.enabled ?? false}
               cronOverride={config?.cronOverride}
               onToggle={(enabled) => handleToggle(skill.id, enabled)}
+              onCronChange={(cron) =>
+                handleCronChange(skill.id, config?._id, cron)
+              }
             />
           );
         })}

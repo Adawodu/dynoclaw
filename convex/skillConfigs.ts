@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireUser } from "./lib/auth";
+import { requireUser, requireDeploymentOwner } from "./lib/auth";
 
 export const set = mutation({
   args: {
@@ -41,6 +41,7 @@ export const set = mutation({
 export const listByDeployment = query({
   args: { deploymentId: v.id("deployments") },
   handler: async (ctx, args) => {
+    await requireDeploymentOwner(ctx, args.deploymentId);
     return await ctx.db
       .query("skillConfigs")
       .withIndex("by_deploymentId", (q) => q.eq("deploymentId", args.deploymentId))
@@ -54,6 +55,11 @@ export const toggle = mutation({
     enabled: v.boolean(),
   },
   handler: async (ctx, args) => {
+    const userId = await requireUser(ctx);
+    const config = await ctx.db.get(args.id);
+    if (!config || config.userId !== userId) {
+      throw new Error("Skill config not found");
+    }
     await ctx.db.patch(args.id, {
       enabled: args.enabled,
       updatedAt: Date.now(),
@@ -67,6 +73,11 @@ export const updateCron = mutation({
     cronOverride: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const userId = await requireUser(ctx);
+    const config = await ctx.db.get(args.id);
+    if (!config || config.userId !== userId) {
+      throw new Error("Skill config not found");
+    }
     await ctx.db.patch(args.id, {
       cronOverride: args.cronOverride,
       updatedAt: Date.now(),

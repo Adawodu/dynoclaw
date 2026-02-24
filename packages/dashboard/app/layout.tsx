@@ -7,8 +7,8 @@ import { ConvexClientProvider } from "./convex-provider";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Claw Teammate",
-  description: "Deploy and manage your AI teammate",
+  title: "DynoClaw",
+  description: "Enterprise AI teammate platform",
 };
 
 export default function RootLayout({

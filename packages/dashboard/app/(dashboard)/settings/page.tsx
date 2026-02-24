@@ -4,6 +4,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { VmStatusBadge } from "@/components/vm-status-badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -16,13 +17,40 @@ import {
 } from "@/components/ui/dialog";
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Play, Square, RotateCw, RefreshCw, AlertTriangle, Trash2 } from "lucide-react";
+import {
+  Play,
+  Square,
+  RotateCw,
+  RefreshCw,
+  AlertTriangle,
+  Trash2,
+  Save,
+  Plus,
+  X,
+  Info,
+} from "lucide-react";
+
+function RestartRequiredBanner() {
+  return (
+    <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
+      <div className="flex items-center gap-2">
+        <Info className="h-4 w-4 shrink-0 text-amber-500" />
+        <p className="text-sm text-amber-700 dark:text-amber-400">
+          Configuration updated in dashboard. Restart VM from controls above to
+          apply changes on the server.
+        </p>
+      </div>
+    </div>
+  );
+}
 
 export default function SettingsPage() {
   const deployments = useQuery(api.deployments.list);
   const deployment = deployments?.[0];
   const router = useRouter();
   const updateStatus = useMutation(api.deployments.updateStatus);
+  const updateBranding = useMutation(api.deployments.updateBranding);
+  const updateModels = useMutation(api.deployments.updateModels);
   const [acting, setActing] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [actionResult, setActionResult] = useState<{
@@ -33,6 +61,21 @@ export default function SettingsPage() {
     "stop" | "reset" | "delete" | null
   >(null);
   const [polling, setPolling] = useState(false);
+
+  // Branding edit state
+  const [editingBranding, setEditingBranding] = useState(false);
+  const [botName, setBotName] = useState("");
+  const [personality, setPersonality] = useState("");
+  const [savingBranding, setSavingBranding] = useState(false);
+  const [brandingSaved, setBrandingSaved] = useState(false);
+
+  // Models edit state
+  const [editingModels, setEditingModels] = useState(false);
+  const [primaryModel, setPrimaryModel] = useState("");
+  const [fallbacks, setFallbacks] = useState<string[]>([]);
+  const [newFallback, setNewFallback] = useState("");
+  const [savingModels, setSavingModels] = useState(false);
+  const [modelsSaved, setModelsSaved] = useState(false);
 
   const refreshStatus = useCallback(async () => {
     if (!deployment) return;
@@ -76,9 +119,7 @@ export default function SettingsPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            project: deployment.gcpProjectId,
-            zone: deployment.gcpZone,
-            vm: deployment.vmName,
+            deploymentId: deployment._id,
             action,
           }),
         });
@@ -88,7 +129,6 @@ export default function SettingsPage() {
             type: "success",
             message: `VM ${action} initiated successfully.`,
           });
-          // Poll status after a delay to let GCP process
           setTimeout(refreshStatus, 5000);
           setTimeout(refreshStatus, 15000);
           setTimeout(refreshStatus, 30000);
@@ -109,6 +149,63 @@ export default function SettingsPage() {
     },
     [deployment, refreshStatus]
   );
+
+  const startEditBranding = useCallback(() => {
+    if (!deployment) return;
+    setBotName(deployment.branding.botName);
+    setPersonality(deployment.branding.personality);
+    setEditingBranding(true);
+  }, [deployment]);
+
+  const saveBranding = useCallback(async () => {
+    if (!deployment) return;
+    setSavingBranding(true);
+    try {
+      await updateBranding({
+        id: deployment._id,
+        botName,
+        personality,
+      });
+      setEditingBranding(false);
+      setBrandingSaved(true);
+    } finally {
+      setSavingBranding(false);
+    }
+  }, [deployment, botName, personality, updateBranding]);
+
+  const startEditModels = useCallback(() => {
+    if (!deployment) return;
+    setPrimaryModel(deployment.models.primary);
+    setFallbacks([...deployment.models.fallbacks]);
+    setEditingModels(true);
+  }, [deployment]);
+
+  const saveModels = useCallback(async () => {
+    if (!deployment) return;
+    setSavingModels(true);
+    try {
+      await updateModels({
+        id: deployment._id,
+        primary: primaryModel,
+        fallbacks,
+      });
+      setEditingModels(false);
+      setModelsSaved(true);
+    } finally {
+      setSavingModels(false);
+    }
+  }, [deployment, primaryModel, fallbacks, updateModels]);
+
+  const addFallback = useCallback(() => {
+    if (newFallback.trim()) {
+      setFallbacks((prev) => [...prev, newFallback.trim()]);
+      setNewFallback("");
+    }
+  }, [newFallback]);
+
+  const removeFallback = useCallback((index: number) => {
+    setFallbacks((prev) => prev.filter((_, i) => i !== index));
+  }, []);
 
   if (deployments === undefined) {
     return (
@@ -243,6 +340,170 @@ export default function SettingsPage() {
             >
               {actionResult.message}
             </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Bot Identity Card */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-base">Bot Identity</CardTitle>
+          {!editingBranding && (
+            <Button variant="outline" size="sm" onClick={startEditBranding}>
+              Edit
+            </Button>
+          )}
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {brandingSaved && <RestartRequiredBanner />}
+          {editingBranding ? (
+            <>
+              <div className="space-y-1">
+                <label className="text-sm text-muted-foreground">
+                  Bot Name
+                </label>
+                <Input
+                  value={botName}
+                  onChange={(e) => setBotName(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm text-muted-foreground">
+                  Personality
+                </label>
+                <Input
+                  value={personality}
+                  onChange={(e) => setPersonality(e.target.value)}
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  onClick={saveBranding}
+                  disabled={savingBranding}
+                >
+                  <Save className="mr-1 h-3 w-3" />
+                  {savingBranding ? "Saving..." : "Save"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setEditingBranding(false)}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Bot Name</span>
+                <span>{deployment.branding.botName}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Personality</span>
+                <span>{deployment.branding.personality}</span>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* AI Model Card */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-base">AI Model</CardTitle>
+          {!editingModels && (
+            <Button variant="outline" size="sm" onClick={startEditModels}>
+              Edit
+            </Button>
+          )}
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {modelsSaved && <RestartRequiredBanner />}
+          {editingModels ? (
+            <>
+              <div className="space-y-1">
+                <label className="text-sm text-muted-foreground">
+                  Primary Model
+                </label>
+                <Input
+                  value={primaryModel}
+                  onChange={(e) => setPrimaryModel(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm text-muted-foreground">
+                  Fallback Models
+                </label>
+                <div className="space-y-1">
+                  {fallbacks.map((fb, i) => (
+                    <div key={i} className="flex items-center gap-1">
+                      <span className="flex-1 rounded border px-2 py-1 font-mono text-sm">
+                        {fb}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0"
+                        onClick={() => removeFallback(i)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                  <div className="flex gap-1">
+                    <Input
+                      value={newFallback}
+                      onChange={(e) => setNewFallback(e.target.value)}
+                      placeholder="Add fallback model..."
+                      className="text-sm"
+                      onKeyDown={(e) => e.key === "Enter" && addFallback()}
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={addFallback}
+                      disabled={!newFallback.trim()}
+                    >
+                      <Plus className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  onClick={saveModels}
+                  disabled={savingModels}
+                >
+                  <Save className="mr-1 h-3 w-3" />
+                  {savingModels ? "Saving..." : "Save"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setEditingModels(false)}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Primary</span>
+                <span className="font-mono">{deployment.models.primary}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Fallbacks</span>
+                <span className="font-mono">
+                  {deployment.models.fallbacks.length > 0
+                    ? deployment.models.fallbacks.join(", ")
+                    : "None"}
+                </span>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

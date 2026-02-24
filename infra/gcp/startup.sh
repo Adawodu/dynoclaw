@@ -10,8 +10,10 @@ CONFIG_TEMPLATE="${OPENCLAW_DIR}/config-template.jsonc"
 CONFIG_FILE="${OPENCLAW_DIR}/config.jsonc"
 
 # ── Fetch secrets from Secret Manager ────────────────────────────────
+PROJECT_ID="$(curl -s -H 'Metadata-Flavor: Google' http://metadata.google.internal/computeMetadata/v1/project/project-id)"
+
 fetch_secret() {
-  gcloud secrets versions access latest --secret="$1" 2>/dev/null
+  gcloud secrets versions access latest --secret="$1" --project="${PROJECT_ID}" 2>/dev/null
 }
 
 echo "==> Fetching secrets from Secret Manager..."
@@ -44,7 +46,7 @@ export BEEHIIV_API_KEY
 
 # ── Security audit ───────────────────────────────────────────────────
 echo "==> Running security audit..."
-openclaw security audit --fix || true
+openclaw security audit || true
 
 # ── Start gateway ────────────────────────────────────────────────────
 echo "==> Starting OpenClaw gateway..."

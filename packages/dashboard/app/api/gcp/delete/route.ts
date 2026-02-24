@@ -25,6 +25,11 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Set auth before querying so ownership check passes
+  if (convexToken) {
+    convex.setAuth(convexToken);
+  }
+
   // Fetch deployment record from Convex to get GCP details
   const deployment = await convex.query(api.deployments.get, {
     id: deploymentId as Id<"deployments">,
@@ -59,9 +64,6 @@ export async function POST(req: NextRequest) {
 
   // Always attempt Convex cleanup so the user isn't stuck with a phantom record
   try {
-    if (convexToken) {
-      convex.setAuth(convexToken);
-    }
     await convex.mutation(api.deployments.remove, {
       id: deploymentId as Id<"deployments">,
     });

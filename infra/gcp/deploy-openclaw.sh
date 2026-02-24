@@ -104,15 +104,17 @@ if [ ! -f "${MARKER}" ]; then
   apt-get install -y nodejs
 
   echo "==> Installing OpenClaw..."
-  npm install -g openclaw@latest
+  npm install -g openclaw@2026.2.17
 
   mkdir -p "${OPENCLAW_DIR}"
   touch "${MARKER}"
 fi
 
 # ── Fetch secrets ─────────────────────────────────────────────────
+PROJECT_ID="$(curl -s -H 'Metadata-Flavor: Google' http://metadata.google.internal/computeMetadata/v1/project/project-id)"
+
 fetch_secret() {
-  gcloud secrets versions access latest --secret="$1" 2>/dev/null
+  gcloud secrets versions access latest --secret="$1" --project="${PROJECT_ID}" 2>/dev/null
 }
 
 echo "==> Fetching secrets..."
@@ -172,7 +174,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 EnvironmentFile=/etc/openclaw.env
-ExecStartPre=/usr/bin/env openclaw security audit --fix
+ExecStartPre=/usr/bin/env openclaw security audit
 ExecStart=/usr/bin/env openclaw gateway run --bind loopback
 Restart=always
 RestartSec=10
