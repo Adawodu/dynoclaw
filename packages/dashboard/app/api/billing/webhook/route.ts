@@ -4,13 +4,15 @@ import { ConvexHttpClient } from "convex/browser";
 import { api } from "@convex/_generated/api";
 import Stripe from "stripe";
 
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
-
 const relevantEvents = new Set([
   "customer.subscription.created",
   "customer.subscription.updated",
   "customer.subscription.deleted",
 ]);
+
+function getConvex() {
+  return new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
+}
 
 async function planFromPriceId(priceId: string | undefined): Promise<string | undefined> {
   if (!priceId) return undefined;
@@ -21,7 +23,7 @@ async function planFromPriceId(priceId: string | undefined): Promise<string | un
 
   // Fall back to checking Convex pricing plans
   try {
-    const plans = await convex.query(api.pricingPlans.list, {});
+    const plans = await getConvex().query(api.pricingPlans.list, {});
     const match = plans.find((p) => p.stripePriceId === priceId);
     if (match) return match.slug;
   } catch {
@@ -32,6 +34,7 @@ async function planFromPriceId(priceId: string | undefined): Promise<string | un
 }
 
 export async function POST(req: NextRequest) {
+  const convex = getConvex();
   const body = await req.text();
   const sig = req.headers.get("stripe-signature");
 

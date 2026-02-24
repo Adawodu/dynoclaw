@@ -15,9 +15,8 @@ import {
 import { maskApiKey } from "@/lib/formatters";
 import { SKILL_REGISTRY, PLUGIN_REGISTRY } from "@dynoclaw/shared";
 
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
-
 export async function POST(req: NextRequest) {
+  const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
   const authResult = await getGcpToken();
   if (!authResult) {
     return NextResponse.json(
