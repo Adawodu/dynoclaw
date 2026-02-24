@@ -24,8 +24,8 @@ export async function POST() {
   let stripeCustomerId = "pending";
   if (process.env.STRIPE_SECRET_KEY) {
     try {
-      const { stripe } = await import("@/lib/stripe");
-      const customer = await stripe.customers.create({
+      const { getStripe } = await import("@/lib/stripe");
+      const customer = await getStripe().customers.create({
         metadata: { userId },
       });
       stripeCustomerId = customer.id;
