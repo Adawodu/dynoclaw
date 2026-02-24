@@ -5,9 +5,8 @@ import { Id } from "@convex/_generated/dataModel";
 import { getGcpToken } from "@/lib/gcp-auth";
 import { startInstance, stopInstance, resetInstance } from "@/lib/gcp-rest";
 
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
-
 export async function POST(req: NextRequest) {
+  const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
   const authResult = await getGcpToken();
   if (!authResult) {
     return NextResponse.json(
