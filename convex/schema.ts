@@ -174,6 +174,19 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_slug", ["slug"]),
 
+  users: defineTable({
+    clerkId: v.string(),
+    email: v.string(),
+    name: v.optional(v.string()),
+    imageUrl: v.optional(v.string()),
+    role: v.string(),
+    status: v.string(),
+    lastSeenAt: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_clerkId", ["clerkId"])
+    .index("by_role", ["role"]),
+
   navLinks: defineTable({
     label: v.string(),
     href: v.string(),

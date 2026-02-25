@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Zap } from "lucide-react";
+import { LogoIcon } from "@/components/logo";
 import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 
@@ -72,7 +72,7 @@ export function Footer() {
       <div className="mx-auto grid max-w-6xl gap-8 px-4 sm:grid-cols-2 lg:grid-cols-5">
         <div className="lg:col-span-1">
           <Link href="/" className="flex items-center gap-2 font-bold">
-            <Zap className="h-5 w-5 text-primary" />
+            <LogoIcon size={20} />
             DynoClaw
           </Link>
           <p className="mt-3 text-sm text-muted-foreground">

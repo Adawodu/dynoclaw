@@ -26,3 +26,4 @@ packages/create-dynoclaw/skill-files/
 .next/
 packages/dashboard/.next/
 packages/dashboard/.env.local
+.vercel

@@ -9,6 +9,18 @@ export async function requireUser(
   if (!identity) {
     throw new Error("Not authenticated");
   }
+
+  // Check suspension in DB (only for query/mutation contexts that have db)
+  if ("db" in ctx) {
+    const userRecord = await (ctx as QueryCtx).db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject))
+      .unique();
+    if (userRecord?.status === "suspended") {
+      throw new Error("Account suspended");
+    }
+  }
+
   return identity.subject;
 }
 
@@ -28,10 +40,29 @@ export async function requireAdmin(
   if (!identity) {
     throw new Error("Not authenticated");
   }
-  if (ADMIN_SUBJECTS.length > 0 && !ADMIN_SUBJECTS.includes(identity.subject)) {
-    throw new Error("Not authorized — admin access required");
+
+  // Env var is the bootstrap source of truth
+  if (ADMIN_SUBJECTS.length > 0 && ADMIN_SUBJECTS.includes(identity.subject)) {
+    return identity.subject;
   }
-  return identity.subject;
+
+  // Fall back to DB role
+  if ("db" in ctx) {
+    const userRecord = await (ctx as QueryCtx).db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject))
+      .unique();
+    if (userRecord?.role === "admin") {
+      return identity.subject;
+    }
+  }
+
+  // If env var list is empty and no DB record, allow (dev mode)
+  if (ADMIN_SUBJECTS.length === 0) {
+    return identity.subject;
+  }
+
+  throw new Error("Not authorized — admin access required");
 }
 
 export async function isAdmin(
@@ -39,8 +70,27 @@ export async function isAdmin(
 ): Promise<boolean> {
   const identity = await ctx.auth.getUserIdentity();
   if (!identity) return false;
-  if (ADMIN_SUBJECTS.length === 0) return true; // No admin list = everyone is admin (dev mode)
-  return ADMIN_SUBJECTS.includes(identity.subject);
+
+  // Env var check
+  if (ADMIN_SUBJECTS.length > 0 && ADMIN_SUBJECTS.includes(identity.subject)) {
+    return true;
+  }
+
+  // DB role check
+  if ("db" in ctx) {
+    const userRecord = await (ctx as QueryCtx).db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject))
+      .unique();
+    if (userRecord?.role === "admin") {
+      return true;
+    }
+  }
+
+  // Dev mode: no admin list = everyone is admin
+  if (ADMIN_SUBJECTS.length === 0) return true;
+
+  return false;
 }
 
 export async function requireDeploymentOwner(
