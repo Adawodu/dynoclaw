@@ -3,6 +3,14 @@ PR-only for GitHub (no merge)
 No secrets in code
 No destructive commands
 
+## Vercel (Dashboard)
+
+- Production: https://dynoclaw.com (custom domain, Cloudflare DNS)
+- Vercel project: `adawodu/dynoclaw`
+- Deploy: `npx vercel --prod --yes --token $VERCEL_TOKEN` from repo root
+- Env vars synced from `packages/dashboard/.env.local` to Vercel production
+- Build: Stripe and ConvexHttpClient must NOT be initialized at module scope (lazy init only)
+
 ## Knowledge DB (Convex)
 
 After completing significant tasks (new features, bug fixes, architecture decisions, config changes), store a concise summary in the Convex knowledge DB using:
