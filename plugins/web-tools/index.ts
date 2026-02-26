@@ -1,6 +1,8 @@
 import { Type } from "@sinclair/typebox";
 import * as cheerio from "cheerio";
 import pdf from "pdf-parse";
+import * as fs from "fs";
+import * as path from "path";
 
 function json(data: unknown) {
   return {
@@ -207,13 +209,14 @@ const webToolsPlugin = {
       name: "read_pdf",
       label: "Read PDF",
       description:
-        "Download a PDF from a URL and extract its text content. " +
-        "Works with any publicly accessible PDF URL, including Telegram file URLs. " +
+        "Extract text from a PDF file. Accepts local file paths, file:// URLs, or HTTP/HTTPS URLs. " +
+        "For files sent via Telegram chat, use the local file path provided by the system. " +
         "Returns the full text content of the PDF, page count, and metadata.",
       parameters: Type.Object({
         url: Type.String({
           description:
-            "URL of the PDF file to read. Can be any HTTP/HTTPS URL that serves a PDF.",
+            "Path or URL of the PDF. Accepts: local path (/path/to/file.pdf), " +
+            "file:// URL (file:///path/to/file.pdf), or HTTP/HTTPS URL.",
         }),
         maxPages: Type.Optional(
           Type.Number({
@@ -224,22 +227,48 @@ const webToolsPlugin = {
       }),
       async execute(_toolCallId: string, params: any) {
         try {
-          const res = await fetch(params.url, {
-            headers: {
-              "User-Agent":
-                "Mozilla/5.0 (compatible; DynoClaw/1.0; +https://dynoclaw.com)",
-            },
-            redirect: "follow",
-            signal: AbortSignal.timeout(30000),
-          });
+          let buffer: Buffer;
+          const input: string = params.url;
 
-          if (!res.ok) {
-            return json({
-              error: `Failed to download PDF: HTTP ${res.status} ${res.statusText}`,
+          // Determine if this is a local file or a URL
+          const isFileUrl = input.startsWith("file://");
+          const isHttpUrl = input.startsWith("http://") || input.startsWith("https://");
+          const isLocalPath = !isHttpUrl && !isFileUrl;
+
+          if (isLocalPath || isFileUrl) {
+            // Local file path or file:// URL
+            const filePath = isFileUrl
+              ? decodeURIComponent(new URL(input).pathname)
+              : input;
+
+            if (!fs.existsSync(filePath)) {
+              return json({
+                error: `File not found: ${filePath}`,
+                hint: "If this was uploaded via Telegram, the file may be at a different path. " +
+                  "Try checking /tmp/ or the OpenClaw media directory.",
+              });
+            }
+
+            buffer = fs.readFileSync(filePath);
+          } else {
+            // HTTP/HTTPS URL
+            const res = await fetch(input, {
+              headers: {
+                "User-Agent":
+                  "Mozilla/5.0 (compatible; DynoClaw/1.0; +https://dynoclaw.com)",
+              },
+              redirect: "follow",
+              signal: AbortSignal.timeout(30000),
             });
-          }
 
-          const buffer = Buffer.from(await res.arrayBuffer());
+            if (!res.ok) {
+              return json({
+                error: `Failed to download PDF: HTTP ${res.status} ${res.statusText}`,
+              });
+            }
+
+            buffer = Buffer.from(await res.arrayBuffer());
+          }
 
           const options: any = {};
           if (params.maxPages) {
@@ -256,11 +285,113 @@ const webToolsPlugin = {
               : data.text;
 
           return json({
+            source: isLocalPath || isFileUrl ? "local" : "http",
             pageCount: data.numpages,
             textLength: data.text.length,
             truncated: data.text.length > maxChars,
             metadata: data.info || {},
             text,
+          });
+        } catch (err) {
+          return json({
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      },
+    });
+
+    // ── Find local files ────────────────────────────────────────────
+    pluginApi.registerTool({
+      name: "find_files",
+      label: "Find Files",
+      description:
+        "Search for files in a directory by name pattern. Useful for finding uploaded files " +
+        "(PDFs, images, etc.) when you know the approximate filename but not the exact path. " +
+        "Searches common locations like /tmp if no directory is specified.",
+      parameters: Type.Object({
+        pattern: Type.Optional(
+          Type.String({
+            description:
+              'Filename pattern to search for (case-insensitive substring match). ' +
+              'Examples: ".pdf", "resume", "job". If omitted, lists all files.',
+          }),
+        ),
+        directory: Type.Optional(
+          Type.String({
+            description:
+              "Directory to search in. Defaults to /tmp. " +
+              "Other common locations: /root/.openclaw/, /var/tmp/",
+          }),
+        ),
+        recursive: Type.Optional(
+          Type.Boolean({
+            description: "Search subdirectories recursively (default: true)",
+          }),
+        ),
+      }),
+      async execute(_toolCallId: string, params: any) {
+        try {
+          const searchDir = params.directory || "/tmp";
+          const pattern = (params.pattern || "").toLowerCase();
+          const recursive = params.recursive !== false;
+          const maxResults = 50;
+
+          const results: Array<{
+            path: string;
+            name: string;
+            size: number;
+            modified: string;
+          }> = [];
+
+          function scanDir(dir: string, depth: number) {
+            if (results.length >= maxResults) return;
+            if (depth > 5) return; // Safety limit
+
+            try {
+              const entries = fs.readdirSync(dir, { withFileTypes: true });
+              for (const entry of entries) {
+                if (results.length >= maxResults) break;
+                const fullPath = path.join(dir, entry.name);
+
+                if (entry.isFile()) {
+                  if (!pattern || entry.name.toLowerCase().includes(pattern)) {
+                    try {
+                      const stat = fs.statSync(fullPath);
+                      results.push({
+                        path: fullPath,
+                        name: entry.name,
+                        size: stat.size,
+                        modified: stat.mtime.toISOString(),
+                      });
+                    } catch {
+                      // Permission denied — skip
+                    }
+                  }
+                } else if (entry.isDirectory() && recursive) {
+                  // Skip node_modules and hidden dirs
+                  if (entry.name === "node_modules" || entry.name.startsWith(".")) continue;
+                  scanDir(fullPath, depth + 1);
+                }
+              }
+            } catch {
+              // Permission denied — skip directory
+            }
+          }
+
+          scanDir(searchDir, 0);
+
+          // Sort by modification time (newest first)
+          results.sort(
+            (a, b) =>
+              new Date(b.modified).getTime() - new Date(a.modified).getTime(),
+          );
+
+          return json({
+            searchDir,
+            pattern: pattern || "(all files)",
+            filesFound: results.length,
+            truncated: results.length >= maxResults,
+            files: results,
           });
         } catch (err) {
           return json({
