@@ -15,6 +15,7 @@ const PLUGINS = [
   "beehiiv",
   "image-gen",
   "video-gen",
+  "github",
 ];
 
 const SKILLS = [
