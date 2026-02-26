@@ -1,0 +1,12 @@
+{
+  "id": "github",
+  "name": "GitHub",
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "githubToken": { "type": "string" },
+      "defaultOwner": { "type": "string" }
+    },
+    "required": ["githubToken"]
+  }
+}

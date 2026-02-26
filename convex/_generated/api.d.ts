@@ -28,6 +28,7 @@ import type * as pluginConfigs from "../pluginConfigs.js";
 import type * as pricingPlans from "../pricingPlans.js";
 import type * as skillConfigs from "../skillConfigs.js";
 import type * as subscriptions from "../subscriptions.js";
+import type * as users from "../users.js";
 
 import type {
   ApiFromModules,
@@ -56,6 +57,7 @@ declare const fullApi: ApiFromModules<{
   pricingPlans: typeof pricingPlans;
   skillConfigs: typeof skillConfigs;
   subscriptions: typeof subscriptions;
+  users: typeof users;
 }>;
 
 /**

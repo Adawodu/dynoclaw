@@ -43,6 +43,34 @@ export function aggregateByDate(activity: ActivityRow[]) {
   return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
 }
 
+export function classifyModel(
+  model: string,
+  primary: string,
+  fallbacks: string[]
+): "primary" | "fallback" | "other" {
+  if (model === primary) return "primary";
+  if (fallbacks.includes(model)) return "fallback";
+  return "other";
+}
+
+export function aggregateFallbackSpend(
+  activity: ActivityRow[],
+  fallbackModels: string[]
+): { total: number; percentage: number } {
+  let fallbackTotal = 0;
+  let grandTotal = 0;
+  for (const r of activity) {
+    grandTotal += r.usageUsd;
+    if (fallbackModels.includes(r.model)) {
+      fallbackTotal += r.usageUsd;
+    }
+  }
+  return {
+    total: fallbackTotal,
+    percentage: grandTotal > 0 ? (fallbackTotal / grandTotal) * 100 : 0,
+  };
+}
+
 export function maskApiKey(value: string): string {
   if (value.length <= 8) return "****";
   return value.slice(0, 4) + "****" + value.slice(-4);

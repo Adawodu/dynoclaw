@@ -8,6 +8,7 @@ import {
   SignedOut,
 } from "@clerk/nextjs";
 import { Sidebar, MobileNav } from "@/components/sidebar";
+import { useEnsureUser } from "@/hooks/use-ensure-user";
 
 function TrialInit() {
   useEffect(() => {
@@ -15,6 +16,11 @@ function TrialInit() {
       // Non-critical — trial will be created on next load
     });
   }, []);
+  return null;
+}
+
+function UserSync() {
+  useEnsureUser();
   return null;
 }
 
@@ -47,6 +53,7 @@ export default function DashboardLayout({
       </SignedOut>
       <SignedIn>
         <TrialInit />
+        <UserSync />
         <div className="flex h-screen flex-col md:flex-row">
           <Sidebar />
           <MobileNav />

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
-import { Zap } from "lucide-react";
+import { LogoIcon } from "@/components/logo";
 import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 
@@ -31,7 +31,7 @@ export function MarketingNav() {
     <header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-lg">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
         <Link href="/" className="flex items-center gap-2 font-bold text-lg">
-          <Zap className="h-6 w-6 text-primary" />
+          <LogoIcon size={24} />
           <span>DynoClaw</span>
         </Link>
 

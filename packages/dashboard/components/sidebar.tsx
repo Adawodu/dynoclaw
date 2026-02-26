@@ -18,7 +18,9 @@ import {
   ShieldCheck,
   Menu,
   FileText,
+  Users,
 } from "lucide-react";
+import { LogoIcon } from "@/components/logo";
 import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { cn } from "@/lib/utils";
@@ -43,6 +45,7 @@ const navItems = [
 const adminItems = [
   { href: "/admin/pricing", label: "Pricing", icon: ShieldCheck },
   { href: "/admin/cms", label: "CMS", icon: FileText },
+  { href: "/admin/users", label: "Users", icon: Users },
 ];
 
 function NavContent({ onNavigate }: { onNavigate?: () => void }) {
@@ -57,7 +60,7 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
           className="flex items-center gap-2 font-semibold"
           onClick={onNavigate}
         >
-          <Zap className="h-5 w-5 text-primary" />
+          <LogoIcon size={20} />
           <span>DynoClaw</span>
         </Link>
       </div>
@@ -152,7 +155,7 @@ export function MobileNav() {
         </SheetContent>
       </Sheet>
       <Link href="/" className="flex items-center gap-2 font-semibold">
-        <Zap className="h-5 w-5 text-primary" />
+        <LogoIcon size={20} />
         <span>DynoClaw</span>
       </Link>
     </div>

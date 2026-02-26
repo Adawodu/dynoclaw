@@ -121,6 +121,27 @@ export const PLUGIN_REGISTRY: PluginMeta[] = [
     optionalKeys: [],
   },
   {
+    id: "github",
+    name: "GitHub",
+    description: "Read code, create branches, commit files, and open PRs on GitHub repos",
+    requiredKeys: [
+      {
+        key: "githubToken",
+        secretName: "github-token",
+        description: "GitHub fine-grained PAT",
+        signupUrl: "https://github.com/settings/tokens?type=beta",
+      },
+    ],
+    optionalKeys: [
+      {
+        key: "defaultOwner",
+        secretName: "github-default-owner",
+        description: "Default GitHub org/user (e.g. Adawodu)",
+        signupUrl: "https://github.com",
+      },
+    ],
+  },
+  {
     id: "video-gen",
     name: "Video Generation",
     description: "Generate videos using Gemini Veo with persistent storage",
