@@ -84,7 +84,7 @@ curl -sfL "${repoBase}/plugins/${p}/openclaw.plugin.json" -o "\${DEST}/openclaw.
   // Build the complete openclaw.json as a JSON string with bash ${VAR} placeholders.
   // The heredoc (without quotes) will expand these at runtime.
   const fullConfig = {
-    meta: { lastTouchedVersion: "2026.2.17" },
+    meta: { lastTouchedVersion: "2026.2.26" },
     agents: {
       defaults: {
         model: {
@@ -167,7 +167,7 @@ if [ ! -f "\${MARKER}" ]; then
   apt-get install -y nodejs
 
   echo "==> Installing OpenClaw..."
-  npm install -g openclaw@2026.2.17
+  npm install -g openclaw@2026.2.26
 
   mkdir -p "\${OPENCLAW_DIR}"
   touch "\${MARKER}"
