@@ -57,11 +57,6 @@ export async function requireAdmin(
     }
   }
 
-  // If env var list is empty and no DB record, allow (dev mode)
-  if (ADMIN_SUBJECTS.length === 0) {
-    return identity.subject;
-  }
-
   throw new Error("Not authorized — admin access required");
 }
 
@@ -86,9 +81,6 @@ export async function isAdmin(
       return true;
     }
   }
-
-  // Dev mode: no admin list = everyone is admin
-  if (ADMIN_SUBJECTS.length === 0) return true;
 
   return false;
 }
