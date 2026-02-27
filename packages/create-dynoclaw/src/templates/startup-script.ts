@@ -44,7 +44,7 @@ if [ ! -f "\${MARKER}" ]; then
   apt-get install -y nodejs
 
   echo "==> Installing OpenClaw..."
-  npm install -g openclaw@2026.2.17
+  npm install -g openclaw@2026.2.26
 
   mkdir -p "\${OPENCLAW_DIR}"
   touch "\${MARKER}"
