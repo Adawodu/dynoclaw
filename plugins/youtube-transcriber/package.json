@@ -1,0 +1,10 @@
+{
+  "name": "youtube-transcriber",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.ts",
+  "dependencies": {
+    "@danielxceron/youtube-transcript": "^1.2.6",
+    "@sinclair/typebox": "^0.34.48"
+  }
+}
