@@ -4,7 +4,7 @@
   "private": true,
   "main": "index.ts",
   "dependencies": {
-    "@sinclair/typebox": "^0.34.48",
-    "youtube-transcript": "^1.2.1"
+    "@danielxceron/youtube-transcript": "^1.2.6",
+    "@sinclair/typebox": "^0.34.48"
   }
 }

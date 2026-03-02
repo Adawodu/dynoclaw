@@ -1,5 +1,5 @@
 import { Type } from "@sinclair/typebox";
-import { YoutubeTranscript } from "youtube-transcript";
+import { YoutubeTranscript } from "@danielxceron/youtube-transcript";
 
 function json(data: unknown) {
   return {
