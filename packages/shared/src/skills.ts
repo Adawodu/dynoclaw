@@ -84,6 +84,24 @@ export const SKILL_REGISTRY: SkillMeta[] = [
     cronDescription: "On-demand only",
     requiredPlugins: ["convex-knowledge"],
   },
+  {
+    id: "agentmail",
+    name: "AgentMail",
+    description:
+      "Send, receive, and manage emails through a dedicated AgentMail inbox",
+    cron: null,
+    cronDescription: "On-demand only",
+    requiredPlugins: ["agentmail"],
+  },
+  {
+    id: "agent-browser",
+    name: "Agent Browser",
+    description:
+      "Browser automation for navigating pages, filling forms, clicking buttons, taking screenshots, and extracting data from websites",
+    cron: null,
+    cronDescription: "On-demand only",
+    requiredPlugins: [],
+  },
 ];
 
 export function getSkillById(id: string): SkillMeta | undefined {
