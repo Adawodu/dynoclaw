@@ -1,0 +1,12 @@
+{
+  "id": "agentmail",
+  "name": "AgentMail",
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "agentmailApiKey": { "type": "string" },
+      "inboxId": { "type": "string", "default": "jonnymate@agentmail.to" }
+    },
+    "required": ["agentmailApiKey"]
+  }
+}
