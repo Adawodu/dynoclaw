@@ -7,7 +7,7 @@
 #   - Secrets already created in Secret Manager:
 #       telegram-bot-token, anthropic-api-key, google-ai-api-key,
 #       openai-api-key, convex-url, beehiiv-publication-id
-#       (gmail-credentials, github-token, github-default-owner, beehiiv-api-key, postiz-url, postiz-api-key as needed)
+#       (gmail-credentials, github-token, github-default-owner, beehiiv-api-key, postiz-url, postiz-api-key, agentmail-api-key as needed)
 #
 # Usage:
 #   GCP_PROJECT=my-project bash infra/gcp/deploy-openclaw.sh
@@ -106,9 +106,23 @@ if [ ! -f "${MARKER}" ]; then
   echo "==> Installing OpenClaw..."
   npm install -g openclaw@2026.2.26
 
+  echo "==> Installing Bun + QMD..."
+  curl -fsSL https://bun.sh/install | bash
+  export BUN_INSTALL="/root/.bun"
+  export PATH="${BUN_INSTALL}/bin:${PATH}"
+  bun install -g https://github.com/tobi/qmd
+
+  echo "==> Installing agent-browser..."
+  npx playwright install --with-deps chromium
+  npm install -g agent-browser
+
   mkdir -p "${OPENCLAW_DIR}"
   touch "${MARKER}"
 fi
+
+# Ensure bun/qmd are on PATH for subsequent commands
+export BUN_INSTALL="/root/.bun"
+export PATH="${BUN_INSTALL}/bin:${PATH}"
 
 # ── Upgrade OpenClaw if version differs ────────────────────────────
 DESIRED_VERSION="2026.2.26"
@@ -440,12 +454,47 @@ install_carousel_gen_plugin() {
         sudo bash -c 'cd ${PLUGIN_DEST} && npm install --omit=dev'"
 }
 
+install_agentmail_plugin() {
+  local PLUGIN_SRC="${SCRIPT_DIR}/../../plugins/agentmail"
+  local PLUGIN_DEST="/root/.openclaw/extensions/agentmail"
+
+  echo "==> Installing AgentMail plugin files..."
+  gcloud compute ssh "${VM_NAME}" \
+    --zone="${ZONE}" --project="${PROJECT}" \
+    -- "sudo mkdir -p ${PLUGIN_DEST} && mkdir -p /tmp/agentmail-plugin"
+  gcloud compute scp \
+    "${PLUGIN_SRC}/package.json" \
+    "${PLUGIN_SRC}/index.ts" \
+    "${PLUGIN_SRC}/openclaw.plugin.json" \
+    "${VM_NAME}:/tmp/agentmail-plugin/" \
+    --zone="${ZONE}" --project="${PROJECT}"
+  gcloud compute ssh "${VM_NAME}" \
+    --zone="${ZONE}" --project="${PROJECT}" \
+    -- "sudo cp /tmp/agentmail-plugin/* ${PLUGIN_DEST}/ && \
+        sudo bash -c 'cd ${PLUGIN_DEST} && npm install --omit=dev'"
+}
+
+# ── Initialize QMD memory backend ────────────────────────────────────
+init_qmd_memory() {
+  echo "==> Initializing QMD memory backend (update + embed)..."
+  gcloud compute ssh "${VM_NAME}" \
+    --zone="${ZONE}" --project="${PROJECT}" \
+    -- "export BUN_INSTALL=/root/.bun && export PATH=\${BUN_INSTALL}/bin:\${PATH} && \
+        export XDG_CONFIG_HOME=/root/.openclaw/agents/main/qmd/xdg-config && \
+        export XDG_CACHE_HOME=/root/.openclaw/agents/main/qmd/xdg-cache && \
+        mkdir -p \${XDG_CONFIG_HOME} \${XDG_CACHE_HOME} && \
+        qmd update && qmd embed && \
+        echo 'QMD index built successfully' && \
+        qmd query 'test' -c memory-root --json 2>/dev/null | head -5 && \
+        echo 'QMD verification complete'"
+}
+
 # ── Configure all plugins atomically ─────────────────────────────────
 # Fetches all secrets, then patches openclaw.json with plugin entries in
 # one shot. This avoids the global validation issue with `openclaw config set`.
 configure_all_plugins() {
   echo "==> Fetching plugin secrets..."
-  local CONVEX_URL POSTIZ_URL POSTIZ_API_KEY BEEHIIV_API_KEY BEEHIIV_PUB_ID GOOGLE_AI_API_KEY OPENAI_API_KEY DRIVE_FOLDER_ID DRIVE_CLIENT_ID DRIVE_CLIENT_SECRET DRIVE_REFRESH_TOKEN GITHUB_TOKEN GITHUB_DEFAULT_OWNER GMAIL_REFRESH_TOKEN
+  local CONVEX_URL POSTIZ_URL POSTIZ_API_KEY BEEHIIV_API_KEY BEEHIIV_PUB_ID GOOGLE_AI_API_KEY OPENAI_API_KEY DRIVE_FOLDER_ID DRIVE_CLIENT_ID DRIVE_CLIENT_SECRET DRIVE_REFRESH_TOKEN GITHUB_TOKEN GITHUB_DEFAULT_OWNER GMAIL_REFRESH_TOKEN AGENTMAIL_API_KEY
   CONVEX_URL="$(gcloud secrets versions access latest --secret=convex-url --project="${PROJECT}")"
   POSTIZ_URL="$(gcloud secrets versions access latest --secret=postiz-url --project="${PROJECT}")"
   POSTIZ_API_KEY="$(gcloud secrets versions access latest --secret=postiz-api-key --project="${PROJECT}")"
@@ -461,6 +510,7 @@ configure_all_plugins() {
   GITHUB_DEFAULT_OWNER="$(gcloud secrets versions access latest --secret=github-default-owner --project="${PROJECT}" || echo "Adawodu")"
   GMAIL_REFRESH_TOKEN="$(gcloud secrets versions access latest --secret=gmail-oauth-refresh-token --project="${PROJECT}" || true)"
   TWITTER_BEARER_TOKEN="$(gcloud secrets versions access latest --secret=twitter-bearer-token --project="${PROJECT}" || true)"
+  AGENTMAIL_API_KEY="$(gcloud secrets versions access latest --secret=agentmail-api-key --project="${PROJECT}" || true)"
 
   echo "==> Patching openclaw.json with plugin configs..."
   # Build a node script that reads current config and merges plugin entries
@@ -482,20 +532,47 @@ config.plugins.entries = Object.assign(config.plugins.entries || {}, {
   "web-tools": { enabled: true, config: {} },
   "twitter-research": { enabled: true, config: { bearerToken: process.env.TWITTER_BEARER_TOKEN || undefined } },
   "youtube-transcriber": { enabled: true, config: {} },
-  "carousel-gen": { enabled: true, config: { convexUrl: process.env.CONVEX_URL || undefined, driveFolderId: process.env.DRIVE_FOLDER_ID || undefined, driveClientId: process.env.DRIVE_CLIENT_ID || undefined, driveClientSecret: process.env.DRIVE_CLIENT_SECRET || undefined, driveRefreshToken: process.env.DRIVE_REFRESH_TOKEN || undefined } }
+  "carousel-gen": { enabled: true, config: { convexUrl: process.env.CONVEX_URL || undefined, driveFolderId: process.env.DRIVE_FOLDER_ID || undefined, driveClientId: process.env.DRIVE_CLIENT_ID || undefined, driveClientSecret: process.env.DRIVE_CLIENT_SECRET || undefined, driveRefreshToken: process.env.DRIVE_REFRESH_TOKEN || undefined } },
+  "agentmail": { enabled: true, config: { agentmailApiKey: process.env.AGENTMAIL_API_KEY, inboxId: "jonnymate@agentmail.to" } }
 });
 // Ensure all plugins are in the allowlist
-const allPlugins = ["postiz", "convex-knowledge", "image-gen", "video-gen", "beehiiv", "telegram", "twitter-research", "github", "dynoclux", "dynosist", "web-tools", "youtube-transcriber", "carousel-gen"];
+const allPlugins = ["postiz", "convex-knowledge", "image-gen", "video-gen", "beehiiv", "telegram", "twitter-research", "github", "dynoclux", "dynosist", "web-tools", "youtube-transcriber", "carousel-gen", "agentmail"];
 config.plugins.allow = config.plugins.allow || [];
 for (const p of allPlugins) { if (!config.plugins.allow.includes(p)) config.plugins.allow.push(p); }
+// Configure QMD memory backend
+config.memory = {
+  backend: "qmd",
+  citations: "auto",
+  qmd: {
+    command: "qmd",
+    searchMode: "search",
+    includeDefaultMemory: true,
+    update: {
+      interval: "5m",
+      debounceMs: 15000,
+      onBoot: true,
+      waitForBootSync: false
+    },
+    limits: {
+      maxResults: 6,
+      maxSnippetChars: 2000,
+      timeoutMs: 4000
+    },
+    paths: [
+      { name: "workspace-memory", path: "/root/.openclaw/workspace/memory", pattern: "**/*.md" },
+      { name: "skills", path: "/root/.openclaw/skills", pattern: "**/*.md" },
+      { name: "agents-shared", path: "/root/.openclaw/workspace/agents/shared", pattern: "**/*.md" }
+    ]
+  }
+};
 fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
-console.log("Plugin configs written successfully");
+console.log("Plugin + QMD memory configs written successfully");
 NODESCRIPT
 )
 
   gcloud compute ssh "${VM_NAME}" \
     --zone="${ZONE}" --project="${PROJECT}" \
-    -- "sudo CONVEX_URL='${CONVEX_URL}' POSTIZ_URL='${POSTIZ_URL}' POSTIZ_API_KEY='${POSTIZ_API_KEY}' BEEHIIV_API_KEY='${BEEHIIV_API_KEY}' BEEHIIV_PUB_ID='${BEEHIIV_PUB_ID}' GOOGLE_AI_API_KEY='${GOOGLE_AI_API_KEY}' OPENAI_API_KEY='${OPENAI_API_KEY}' DRIVE_FOLDER_ID='${DRIVE_FOLDER_ID}' DRIVE_CLIENT_ID='${DRIVE_CLIENT_ID}' DRIVE_CLIENT_SECRET='${DRIVE_CLIENT_SECRET}' DRIVE_REFRESH_TOKEN='${DRIVE_REFRESH_TOKEN}' GITHUB_TOKEN='${GITHUB_TOKEN}' GITHUB_DEFAULT_OWNER='${GITHUB_DEFAULT_OWNER}' GMAIL_REFRESH_TOKEN='${GMAIL_REFRESH_TOKEN}' TWITTER_BEARER_TOKEN='${TWITTER_BEARER_TOKEN}' node -e '${PATCH_SCRIPT}'"
+    -- "sudo CONVEX_URL='${CONVEX_URL}' POSTIZ_URL='${POSTIZ_URL}' POSTIZ_API_KEY='${POSTIZ_API_KEY}' BEEHIIV_API_KEY='${BEEHIIV_API_KEY}' BEEHIIV_PUB_ID='${BEEHIIV_PUB_ID}' GOOGLE_AI_API_KEY='${GOOGLE_AI_API_KEY}' OPENAI_API_KEY='${OPENAI_API_KEY}' DRIVE_FOLDER_ID='${DRIVE_FOLDER_ID}' DRIVE_CLIENT_ID='${DRIVE_CLIENT_ID}' DRIVE_CLIENT_SECRET='${DRIVE_CLIENT_SECRET}' DRIVE_REFRESH_TOKEN='${DRIVE_REFRESH_TOKEN}' GITHUB_TOKEN='${GITHUB_TOKEN}' GITHUB_DEFAULT_OWNER='${GITHUB_DEFAULT_OWNER}' GMAIL_REFRESH_TOKEN='${GMAIL_REFRESH_TOKEN}' TWITTER_BEARER_TOKEN='${TWITTER_BEARER_TOKEN}' AGENTMAIL_API_KEY='${AGENTMAIL_API_KEY}' node -e '${PATCH_SCRIPT}'"
 
   echo "==> Restarting OpenClaw..."
   gcloud compute ssh "${VM_NAME}" \
@@ -520,7 +597,19 @@ install_skills() {
     dynoclux/SKILL.md \
     growth-hacker/SKILL.md \
     product-update/SKILL.md \
-    dynosist/SKILL.md
+    dynosist/SKILL.md \
+    agentmail/SKILL.md \
+    agent-browser/SKILL.md \
+    agent-browser/references/commands.md \
+    agent-browser/references/snapshot-refs.md \
+    agent-browser/references/session-management.md \
+    agent-browser/references/authentication.md \
+    agent-browser/references/video-recording.md \
+    agent-browser/references/profiling.md \
+    agent-browser/references/proxy-support.md \
+    agent-browser/templates/form-automation.sh \
+    agent-browser/templates/authenticated-session.sh \
+    agent-browser/templates/capture-workflow.sh
 
   echo "==> Copying skills tarball to VM..."
   gcloud compute scp "${TARBALL}" \
@@ -576,8 +665,10 @@ install_web_tools_plugin
 install_twitter_research_plugin
 install_youtube_transcriber_plugin
 install_carousel_gen_plugin
+install_agentmail_plugin
 configure_all_plugins
 install_skills
+init_qmd_memory
 
 echo ""
 echo "==> Deploy complete!"
