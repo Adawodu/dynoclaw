@@ -1,0 +1,11 @@
+{
+  "id": "hubspot",
+  "name": "HubSpot CRM",
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "hubspotApiKey": { "type": "string" }
+    },
+    "required": ["hubspotApiKey"]
+  }
+}

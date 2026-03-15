@@ -111,6 +111,24 @@ export const SKILL_REGISTRY: SkillMeta[] = [
     cronDescription: "On-demand only",
     requiredPlugins: [],
   },
+  {
+    id: "crm-pipeline",
+    name: "CRM Pipeline",
+    description:
+      "Manage CRM contacts, deals, companies, and sales pipeline across HubSpot or Zoho",
+    cron: null,
+    cronDescription: "On-demand only",
+    requiredPlugins: [],
+  },
+  {
+    id: "metric-health-echo",
+    name: "MetricHealth Echo",
+    description:
+      "Healthcare tech thought leadership posts for LinkedIn and X, focused on Metric Health and brain health",
+    cron: "0 */4 * * *",
+    cronDescription: "Every 4 hours",
+    requiredPlugins: ["postiz"],
+  },
 ];
 
 export function getSkillById(id: string): SkillMeta | undefined {

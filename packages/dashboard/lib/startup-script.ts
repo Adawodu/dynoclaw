@@ -21,6 +21,11 @@ export const KNOWN_SECRETS = [
   "drive-oauth-refresh-token",
   "drive-media-folder-id",
   "gmail-oauth-refresh-token",
+  "hubspot-api-key",
+  "zoho-client-id",
+  "zoho-client-secret",
+  "zoho-refresh-token",
+  "zoho-data-center",
 ];
 
 export function generateWebStartupScript(config: {

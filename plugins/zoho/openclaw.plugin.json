@@ -1,0 +1,14 @@
+{
+  "id": "zoho",
+  "name": "Zoho CRM",
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "zohoClientId": { "type": "string" },
+      "zohoClientSecret": { "type": "string" },
+      "zohoRefreshToken": { "type": "string" },
+      "zohoDataCenter": { "type": "string", "default": "com" }
+    },
+    "required": ["zohoClientId", "zohoClientSecret", "zohoRefreshToken"]
+  }
+}
