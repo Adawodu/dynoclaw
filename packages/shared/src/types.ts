@@ -22,6 +22,7 @@ export interface BrandingConfig {
   botName: string;
   personality: string;
   systemPrompt?: string;
+  signature?: string;
 }
 
 export interface TelegramConfig {

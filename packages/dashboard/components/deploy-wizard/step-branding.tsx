@@ -42,6 +42,22 @@ export function StepBranding({ state, update }: Props) {
           />
         </div>
         <div className="space-y-2">
+          <Label htmlFor="signature">Content Signature</Label>
+          <Input
+            id="signature"
+            placeholder="e.g. Jane Doe | CEO at Acme Corp — Like, Comment & Share | Powered by DynoClaw"
+            value={state.branding.signature ?? ""}
+            onChange={(e) =>
+              update({
+                branding: { ...state.branding, signature: e.target.value },
+              })
+            }
+          />
+          <p className="text-xs text-muted-foreground">
+            Used as the footer on generated content like comic briefs
+          </p>
+        </div>
+        <div className="space-y-2">
           <Label htmlFor="primaryModel">Primary Model</Label>
           <Input
             id="primaryModel"
