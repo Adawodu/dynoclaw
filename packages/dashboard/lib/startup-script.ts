@@ -31,7 +31,7 @@ export const KNOWN_SECRETS = [
 export function generateWebStartupScript(config: {
   gcpProjectId: string;
   apiKeys: Record<string, string>;
-  branding: { botName: string; personality: string };
+  branding: { botName: string; personality: string; signature?: string };
   models: { primary: string; fallbacks: string[] };
   enabledPlugins: string[];
   enabledSkills: string[];
@@ -152,6 +152,8 @@ fi`
     }
   }
 
+  const signature = config.branding.signature || `${config.branding.botName} — Powered by DynoClaw`;
+
   const skillDownloads = expandedSkills
     .map((s) => {
       const meta = SKILL_REGISTRY.find((sk) => sk.id === s);
@@ -162,7 +164,8 @@ fi`
 # Install skill: ${s}
 SKILL_DIR="/root/.openclaw/skills/${s}"
 mkdir -p "\${SKILL_DIR}"
-curl -sL "${repoBase}/skills/${s}/SKILL.md" -o "\${SKILL_DIR}/SKILL.md" || true${cronCmd}`;
+curl -sL "${repoBase}/skills/${s}/SKILL.md" -o "\${SKILL_DIR}/SKILL.md" || true
+sed -i 's#{{SIGNATURE}}#${signature}#g' "\${SKILL_DIR}/SKILL.md" 2>/dev/null || true${cronCmd}`;
     })
     .join("\n");
 
