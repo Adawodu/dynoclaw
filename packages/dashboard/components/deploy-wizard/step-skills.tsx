@@ -25,16 +25,23 @@ export function StepSkills({ state, update }: Props) {
           );
           const disabled = missingPlugins.length > 0;
 
+          const isPack = !!(skill as any).bundledSkills?.length;
+
           return (
             <div
               key={skill.id}
-              className="flex items-center justify-between rounded-md border p-3"
+              className={`flex items-center justify-between rounded-md border p-3 ${isPack ? "border-primary/30 bg-primary/5" : ""}`}
             >
               <div>
                 <p className="text-sm font-medium">{skill.name}</p>
                 <p className="text-xs text-muted-foreground">{skill.description}</p>
+                {isPack && (
+                  <Badge variant="outline" className="mt-1 text-xs">
+                    Agent Pack
+                  </Badge>
+                )}
                 {skill.cron && (
-                  <Badge variant="secondary" className="mt-1 text-xs font-mono">
+                  <Badge variant="secondary" className="mt-1 text-xs font-mono ml-1">
                     {skill.cronDescription}
                   </Badge>
                 )}

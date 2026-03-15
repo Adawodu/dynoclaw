@@ -56,6 +56,8 @@ export interface SkillMeta {
   cron: string | null;
   cronDescription: string;
   requiredPlugins: string[];
+  /** When set, this skill is a pack that bundles multiple sub-skills. */
+  bundledSkills?: string[];
 }
 
 export interface PresetConfig {
