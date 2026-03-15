@@ -141,7 +141,18 @@ fi`
     )
     .join("");
 
-  const skillDownloads = config.enabledSkills
+  // Expand pack skills into individual skill IDs
+  const expandedSkills: string[] = [];
+  for (const s of config.enabledSkills) {
+    const meta = SKILL_REGISTRY.find((sk) => sk.id === s);
+    if (meta?.bundledSkills?.length) {
+      expandedSkills.push(...meta.bundledSkills);
+    } else {
+      expandedSkills.push(s);
+    }
+  }
+
+  const skillDownloads = expandedSkills
     .map((s) => {
       const meta = SKILL_REGISTRY.find((sk) => sk.id === s);
       const cronCmd = meta?.cron
