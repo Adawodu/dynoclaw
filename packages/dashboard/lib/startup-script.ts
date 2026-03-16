@@ -135,7 +135,7 @@ curl -sfL "${repoBase}/plugins/${p}/openclaw.plugin.json" -o "\${DEST}/openclaw.
     .map(
       ({ profile, provider, envVar }) => `
 if [ -n "\${${envVar}:-}" ]; then
-  printf '%s"${profile}":{"provider":"${provider}","token":"%s","createdAt":"2026-01-01T00:00:00Z"}' "\${SEP}" "\${${envVar}}" >> /tmp/auth-profiles.json
+  printf '%s"${profile}":{"type":"api_key","provider":"${provider}","token":"%s","createdAt":"2026-01-01T00:00:00Z"}' "\${SEP}" "\${${envVar}}" >> /tmp/auth-profiles.json
   SEP=","
 fi`
     )
