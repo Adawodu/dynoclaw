@@ -1,4 +1,26 @@
-import type { PluginMeta } from "./types";
+import type { PluginMeta, ApiKeyMeta } from "./types";
+
+export const PLATFORM_SECRETS: ApiKeyMeta[] = [
+  { key: "telegramBotToken", secretName: "telegram-bot-token", description: "Telegram Bot Token", signupUrl: "https://t.me/BotFather" },
+  { key: "anthropicApiKey", secretName: "anthropic-api-key", description: "Anthropic API key", signupUrl: "https://console.anthropic.com" },
+  { key: "openrouterApiKey", secretName: "openrouter-api-key", description: "OpenRouter API key", signupUrl: "https://openrouter.ai/keys" },
+  { key: "openaiApiKey", secretName: "openai-api-key", description: "OpenAI API key", signupUrl: "https://platform.openai.com/api-keys" },
+  { key: "googleAiApiKey", secretName: "google-ai-api-key", description: "Google AI (Gemini) API key", signupUrl: "https://aistudio.google.com/apikey" },
+  { key: "braveSearchApiKey", secretName: "brave-search-api-key", description: "Brave Search API key", signupUrl: "https://brave.com/search/api/" },
+];
+
+export function getAllSecretNames(enabledPlugins?: string[]): string[] {
+  const names = new Set(PLATFORM_SECRETS.map((s) => s.secretName));
+  const plugins = enabledPlugins
+    ? PLUGIN_REGISTRY.filter((p) => enabledPlugins.includes(p.id))
+    : PLUGIN_REGISTRY;
+  for (const plugin of plugins) {
+    for (const k of [...plugin.requiredKeys, ...plugin.optionalKeys]) {
+      names.add(k.secretName);
+    }
+  }
+  return [...names];
+}
 
 export const PLUGIN_REGISTRY: PluginMeta[] = [
   {
@@ -205,7 +227,14 @@ export const PLUGIN_REGISTRY: PluginMeta[] = [
     name: "Web Tools",
     description: "Crawl websites and extract text from PDF files",
     requiredKeys: [],
-    optionalKeys: [],
+    optionalKeys: [
+      {
+        key: "braveSearchApiKey",
+        secretName: "brave-search-api-key",
+        description: "Brave Search API key (for web search)",
+        signupUrl: "https://brave.com/search/api/",
+      },
+    ],
   },
   {
     id: "hubspot",
@@ -304,6 +333,65 @@ export const PLUGIN_REGISTRY: PluginMeta[] = [
         signupUrl: "https://console.cloud.google.com/apis/credentials",
       },
     ],
+  },
+  {
+    id: "agentmail",
+    name: "AgentMail",
+    description: "Dedicated agent email inbox via AgentMail API",
+    requiredKeys: [
+      {
+        key: "agentmailApiKey",
+        secretName: "agentmail-api-key",
+        description: "AgentMail API key",
+        signupUrl: "https://agentmail.to",
+      },
+    ],
+    optionalKeys: [],
+  },
+  {
+    id: "carousel-gen",
+    name: "Carousel Generation",
+    description: "Generate HTML-to-PNG carousel images using Puppeteer",
+    requiredKeys: [],
+    optionalKeys: [
+      {
+        key: "convexUrl",
+        secretName: "convex-url",
+        description: "Convex deployment URL (for media metadata storage)",
+        signupUrl: "https://convex.dev",
+      },
+      {
+        key: "driveFolderId",
+        secretName: "drive-media-folder-id",
+        description: "Google Drive folder ID for media storage",
+        signupUrl: "https://drive.google.com",
+      },
+      {
+        key: "driveClientId",
+        secretName: "drive-oauth-client-id",
+        description: "Google Drive OAuth client ID",
+        signupUrl: "https://console.cloud.google.com/apis/credentials",
+      },
+      {
+        key: "driveClientSecret",
+        secretName: "drive-oauth-client-secret",
+        description: "Google Drive OAuth client secret",
+        signupUrl: "https://console.cloud.google.com/apis/credentials",
+      },
+      {
+        key: "driveRefreshToken",
+        secretName: "drive-oauth-refresh-token",
+        description: "Google Drive OAuth refresh token",
+        signupUrl: "https://console.cloud.google.com/apis/credentials",
+      },
+    ],
+  },
+  {
+    id: "youtube-transcriber",
+    name: "YouTube Transcriber",
+    description: "Transcribe YouTube videos for content research",
+    requiredKeys: [],
+    optionalKeys: [],
   },
 ];
 

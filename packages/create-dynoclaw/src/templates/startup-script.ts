@@ -52,6 +52,28 @@ if [ ! -f "\${MARKER}" ]; then
   echo "==> Installing OpenClaw..."
   npm install -g openclaw@${OPENCLAW_VERSION}
 
+  echo "==> Installing browser dependencies..."
+  apt-get install -y chromium xvfb
+  npm install -g agent-browser
+  npx playwright install --with-deps chromium
+
+  echo "==> Setting up virtual display..."
+  cat > /etc/systemd/system/xvfb.service <<'XVFBEOF'
+[Unit]
+Description=Virtual Framebuffer Display
+Before=openclaw.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/Xvfb :99 -screen 0 1280x720x24
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+XVFBEOF
+  systemctl daemon-reload
+  systemctl enable --now xvfb
+
   mkdir -p "\${OPENCLAW_DIR}"
   touch "\${MARKER}"
 fi
@@ -93,16 +115,22 @@ ${config.models.fallbacks
   })
   .join("\n")}
 
-# Generate a gateway auth token on first run only
-EXISTING_TOKEN="$(openclaw config get gateway.auth.token 2>/dev/null || true)"
-if [ -z "\${EXISTING_TOKEN}" ] || echo "\${EXISTING_TOKEN}" | grep -q "not found"; then
-  GATEWAY_TOKEN="$(openssl rand -hex 32)"
-  openclaw config set gateway.auth.token "\${GATEWAY_TOKEN}" > /dev/null 2>&1
+# Generate a gateway auth token on first run only, persist across reboots
+if [ -f /root/.openclaw/.gateway-token ]; then
+  GATEWAY_TOKEN="\$(cat /root/.openclaw/.gateway-token)"
+else
+  mkdir -p /root/.openclaw
+  GATEWAY_TOKEN="\$(openssl rand -hex 32)"
+  echo "\${GATEWAY_TOKEN}" > /root/.openclaw/.gateway-token
+  chmod 600 /root/.openclaw/.gateway-token
 fi
+openclaw config set gateway.auth.token "\${GATEWAY_TOKEN}" > /dev/null 2>&1
 
 # ── Environment file (secrets not visible in unit file) ──────────
 cat > /etc/openclaw.env <<ENVFILE
 ${envFileEntries}${geminiAlias}
+DISPLAY=:99
+DBUS_SESSION_BUS_ADDRESS=disabled:
 ENVFILE
 chmod 600 /etc/openclaw.env
 

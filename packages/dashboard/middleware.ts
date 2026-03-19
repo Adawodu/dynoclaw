@@ -6,7 +6,9 @@ import { api } from "@convex/_generated/api";
 const isPublicRoute = createRouteMatcher([
   "/",
   "/guide(.*)",
+  "/webinar(.*)",
   "/api/billing/webhook",
+  "/api/webinar(.*)",
   "/sign-in(.*)",
   "/sign-up(.*)",
 ]);
@@ -24,6 +26,7 @@ const isDashboardRoute = createRouteMatcher([
   "/settings(.*)",
   "/billing(.*)",
   "/admin(.*)",
+  "/webinar-admin(.*)",
 ]);
 
 export default clerkMiddleware(async (auth, req) => {

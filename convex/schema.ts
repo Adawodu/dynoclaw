@@ -137,14 +137,43 @@ export default defineSchema({
   pricingPlans: defineTable({
     slug: v.string(),
     name: v.string(),
+    billingType: v.optional(v.union(
+      v.literal("subscription"),
+      v.literal("one_time"),
+      v.literal("subscription_plus_setup"),
+    )),
     priceAmountCents: v.number(),
+    setupFeeCents: v.optional(v.number()),
     stripePriceId: v.optional(v.string()),
+    stripeSetupPriceId: v.optional(v.string()),
     description: v.string(),
     features: v.array(v.string()),
+    deliverables: v.optional(v.array(v.string())),
+    ctaText: v.optional(v.string()),
     highlighted: v.boolean(),
     sortOrder: v.number(),
     active: v.boolean(),
   }).index("by_slug", ["slug"]),
+
+  serviceOrders: defineTable({
+    userId: v.string(),
+    planId: v.id("pricingPlans"),
+    planSlug: v.string(),
+    stripeSessionId: v.optional(v.string()),
+    stripePaymentIntentId: v.optional(v.string()),
+    amountCents: v.number(),
+    status: v.union(
+      v.literal("paid"),
+      v.literal("in_progress"),
+      v.literal("delivered"),
+    ),
+    notes: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_status", ["status"])
+    .index("by_stripeSessionId", ["stripeSessionId"]),
 
   deployJobs: defineTable({
     userId: v.string(),
@@ -349,4 +378,63 @@ export default defineSchema({
   })
     .index("by_userId_startedAt", ["userId", "startedAt"])
     .index("by_sessionId", ["sessionId"]),
+
+  // ── Webinar / Lead Funnel Tables ────────────────────────────────
+
+  webinarSlides: defineTable({
+    webinarId: v.string(),
+    order: v.number(),
+    type: v.union(
+      v.literal("cover"),
+      v.literal("content"),
+      v.literal("section"),
+      v.literal("interactive"),
+      v.literal("demo"),
+      v.literal("cta"),
+    ),
+    title: v.string(),
+    subtitle: v.optional(v.string()),
+    bullets: v.optional(v.array(v.string())),
+    speakerNotes: v.optional(v.string()),
+    highlightBox: v.optional(v.string()),
+    demoSteps: v.optional(v.array(v.string())),
+    demoSpeakerNote: v.optional(v.string()),
+    options: v.optional(v.array(v.string())),
+    instruction: v.optional(v.string()),
+    tableRows: v.optional(v.array(v.object({
+      cells: v.array(v.string()),
+    }))),
+    tableHeaders: v.optional(v.array(v.string())),
+    twoColumns: v.optional(v.object({
+      left: v.object({ heading: v.string(), items: v.array(v.string()) }),
+      right: v.object({ heading: v.string(), items: v.array(v.string()) }),
+    })),
+    presenterInfo: v.optional(v.object({
+      name: v.string(),
+      title: v.string(),
+      subtitle: v.optional(v.string()),
+      event: v.optional(v.string()),
+    })),
+    ctaButton: v.optional(v.object({
+      label: v.string(),
+      url: v.string(),
+    })),
+    showInPublic: v.boolean(),
+    showDynoclawCta: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_webinarId", ["webinarId"])
+    .index("by_webinarId_order", ["webinarId", "order"]),
+
+  webinarLeads: defineTable({
+    webinarId: v.string(),
+    name: v.string(),
+    email: v.string(),
+    businessType: v.optional(v.string()),
+    biggestChallenge: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_webinarId", ["webinarId"])
+    .index("by_email", ["email"]),
 });

@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Eye, EyeOff } from "lucide-react";
-import { getRequiredApiKeys } from "@dynoclaw/shared";
+import { getRequiredApiKeys, PLATFORM_SECRETS } from "@dynoclaw/shared";
 import { useState } from "react";
 import type { WizardState } from "@/app/(dashboard)/deploy/page";
 
@@ -22,29 +22,14 @@ export function StepApiKeys({ state, update }: Props) {
     .filter(([, v]) => v)
     .map(([k]) => k);
 
-  // Always need telegram token
+  // Platform secrets that are always required (telegram, openrouter, brave)
+  const requiredPlatformIds = ["telegramBotToken", "openrouterApiKey", "braveSearchApiKey"];
+  const platformKeys = PLATFORM_SECRETS
+    .filter((s) => requiredPlatformIds.includes(s.key))
+    .map((s) => ({ ...s, required: true }));
+
   const keys = [
-    {
-      key: "telegramBotToken",
-      secretName: "telegram-bot-token",
-      description: "Telegram Bot Token",
-      signupUrl: "https://t.me/BotFather",
-      required: true,
-    },
-    {
-      key: "openrouterApiKey",
-      secretName: "openrouter-api-key",
-      description: "OpenRouter API key",
-      signupUrl: "https://openrouter.ai/keys",
-      required: true,
-    },
-    {
-      key: "braveApiKey",
-      secretName: "brave-api-key",
-      description: "Brave Search API key (for web search)",
-      signupUrl: "https://brave.com/search/api/",
-      required: true,
-    },
+    ...platformKeys,
     ...getRequiredApiKeys(enabledPlugins),
   ];
 

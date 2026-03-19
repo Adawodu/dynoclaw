@@ -30,7 +30,9 @@ import {
   Info,
   ArrowUpCircle,
 } from "lucide-react";
-import { OPENCLAW_VERSION } from "@dynoclaw/shared";
+import { OPENCLAW_VERSION, PLUGIN_REGISTRY, SKILL_REGISTRY } from "@dynoclaw/shared";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 
 function RestartRequiredBanner() {
   return (
@@ -38,8 +40,7 @@ function RestartRequiredBanner() {
       <div className="flex items-center gap-2">
         <Info className="h-4 w-4 shrink-0 text-amber-500" />
         <p className="text-sm text-amber-700 dark:text-amber-400">
-          Configuration updated in dashboard. Restart VM from controls above to
-          apply changes on the server.
+          Configuration updated. Restart VM to apply changes.
         </p>
       </div>
     </div>
@@ -53,6 +54,22 @@ export default function SettingsPage() {
   const updateStatus = useMutation(api.deployments.updateStatus);
   const updateBranding = useMutation(api.deployments.updateBranding);
   const updateModels = useMutation(api.deployments.updateModels);
+  const pluginConfigs = useQuery(
+    api.pluginConfigs.listByDeployment,
+    deployment ? { deploymentId: deployment._id } : "skip"
+  );
+  const skillConfigs = useQuery(
+    api.skillConfigs.listByDeployment,
+    deployment ? { deploymentId: deployment._id } : "skip"
+  );
+  const setPluginConfig = useMutation(api.pluginConfigs.set);
+  const togglePlugin = useMutation(api.pluginConfigs.toggle);
+  const setSkillConfig = useMutation(api.skillConfigs.set);
+  const toggleSkill = useMutation(api.skillConfigs.toggle);
+  const apiKeys = useQuery(
+    api.apiKeyRegistry.listByDeployment,
+    deployment ? { deploymentId: deployment._id } : "skip"
+  );
   const [acting, setActing] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [actionResult, setActionResult] = useState<{
@@ -77,6 +94,10 @@ export default function SettingsPage() {
   const [personality, setPersonality] = useState("");
   const [savingBranding, setSavingBranding] = useState(false);
   const [brandingSaved, setBrandingSaved] = useState(false);
+
+  // Plugin/skill changed state
+  const [pluginsChanged, setPluginsChanged] = useState(false);
+  const [skillsChanged, setSkillsChanged] = useState(false);
 
   // Models edit state
   const [editingModels, setEditingModels] = useState(false);
@@ -249,6 +270,46 @@ export default function SettingsPage() {
   const removeFallback = useCallback((index: number) => {
     setFallbacks((prev) => prev.filter((_, i) => i !== index));
   }, []);
+
+  const handleTogglePlugin = useCallback(
+    async (pluginId: string, enabled: boolean) => {
+      if (!deployment) return;
+      const existing = pluginConfigs?.find(
+        (p: { pluginId: string }) => p.pluginId === pluginId
+      );
+      if (existing) {
+        await togglePlugin({ id: existing._id, enabled });
+      } else {
+        await setPluginConfig({
+          deploymentId: deployment._id,
+          pluginId,
+          enabled,
+        });
+      }
+      setPluginsChanged(true);
+    },
+    [deployment, pluginConfigs, togglePlugin, setPluginConfig]
+  );
+
+  const handleToggleSkill = useCallback(
+    async (skillId: string, enabled: boolean) => {
+      if (!deployment) return;
+      const existing = skillConfigs?.find(
+        (s: { skillId: string }) => s.skillId === skillId
+      );
+      if (existing) {
+        await toggleSkill({ id: existing._id, enabled });
+      } else {
+        await setSkillConfig({
+          deploymentId: deployment._id,
+          skillId,
+          enabled,
+        });
+      }
+      setSkillsChanged(true);
+    },
+    [deployment, skillConfigs, toggleSkill, setSkillConfig]
+  );
 
   if (deployments === undefined) {
     return (
@@ -581,6 +642,111 @@ export default function SettingsPage() {
               </div>
             </>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Plugins Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Plugins</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {pluginsChanged && <RestartRequiredBanner />}
+          {PLUGIN_REGISTRY.map((plugin) => {
+            const config = pluginConfigs?.find(
+              (p: { pluginId: string }) => p.pluginId === plugin.id
+            );
+            const isEnabled = config?.enabled ?? false;
+            const registeredKeys = new Set(
+              apiKeys?.map((k: { secretName: string }) => k.secretName) ?? []
+            );
+            const missingRequired = plugin.requiredKeys.filter(
+              (k) => !registeredKeys.has(k.secretName)
+            );
+
+            return (
+              <div
+                key={plugin.id}
+                className="flex items-center justify-between rounded-md border px-3 py-2"
+              >
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">{plugin.name}</span>
+                    {missingRequired.length > 0 && isEnabled && (
+                      <Badge variant="destructive" className="text-[10px]">
+                        {missingRequired.length} key{missingRequired.length > 1 ? "s" : ""} missing
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {plugin.description}
+                  </p>
+                </div>
+                <Switch
+                  checked={isEnabled}
+                  onCheckedChange={(checked) =>
+                    handleTogglePlugin(plugin.id, checked)
+                  }
+                />
+              </div>
+            );
+          })}
+        </CardContent>
+      </Card>
+
+      {/* Skills Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Skills</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {skillsChanged && <RestartRequiredBanner />}
+          {SKILL_REGISTRY.map((skill) => {
+            const config = skillConfigs?.find(
+              (s: { skillId: string }) => s.skillId === skill.id
+            );
+            const isEnabled = config?.enabled ?? false;
+            const enabledPluginIds = new Set(
+              pluginConfigs
+                ?.filter((p: { enabled: boolean }) => p.enabled)
+                .map((p: { pluginId: string }) => p.pluginId) ?? []
+            );
+            const missingPlugins = skill.requiredPlugins.filter(
+              (p) => !enabledPluginIds.has(p)
+            );
+
+            return (
+              <div
+                key={skill.id}
+                className="flex items-center justify-between rounded-md border px-3 py-2"
+              >
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">{skill.name}</span>
+                    {skill.cron && (
+                      <Badge variant="secondary" className="text-[10px]">
+                        {skill.cronDescription}
+                      </Badge>
+                    )}
+                    {missingPlugins.length > 0 && isEnabled && (
+                      <Badge variant="destructive" className="text-[10px]">
+                        Needs {missingPlugins.join(", ")}
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {skill.description}
+                  </p>
+                </div>
+                <Switch
+                  checked={isEnabled}
+                  onCheckedChange={(checked) =>
+                    handleToggleSkill(skill.id, checked)
+                  }
+                />
+              </div>
+            );
+          })}
         </CardContent>
       </Card>
 

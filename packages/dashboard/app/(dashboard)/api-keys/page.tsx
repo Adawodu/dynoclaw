@@ -25,6 +25,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { RotateCw, AlertTriangle, Plus, Key } from "lucide-react";
 import { useState, useCallback } from "react";
 import { maskApiKey } from "@/lib/formatters";
+import { PLATFORM_SECRETS, PLUGIN_REGISTRY } from "@dynoclaw/shared";
 import type { Id } from "@convex/_generated/dataModel";
 
 interface ApiKey {
@@ -35,16 +36,26 @@ interface ApiKey {
   deploymentId: Id<"deployments">;
 }
 
-const KNOWN_SECRETS = [
-  { name: "telegram-bot-token", label: "Telegram Bot Token", description: "Get from @BotFather on Telegram" },
-  { name: "postiz-api-key", label: "Postiz API Key", description: "From your Postiz dashboard" },
-  { name: "beehiiv-api-key", label: "Beehiiv API Key", description: "From Beehiiv settings > Integrations" },
-  { name: "beehiiv-publication-id", label: "Beehiiv Publication ID", description: "From Beehiiv settings" },
-  { name: "twitter-bearer-token", label: "Twitter Bearer Token", description: "From Twitter Developer Portal" },
-  { name: "google-api-key", label: "Google API Key", description: "From Google Cloud Console" },
-  { name: "brave-search-api-key", label: "Brave Search API Key", description: "From Brave Search API dashboard" },
-  { name: "openrouter-api-key", label: "OpenRouter API Key", description: "From openrouter.ai" },
-];
+// Derive known secrets from the shared registry (single source of truth)
+const KNOWN_SECRETS = (() => {
+  const seen = new Set<string>();
+  const secrets: { name: string; label: string; description: string }[] = [];
+  for (const s of PLATFORM_SECRETS) {
+    if (!seen.has(s.secretName)) {
+      seen.add(s.secretName);
+      secrets.push({ name: s.secretName, label: s.description, description: s.signupUrl });
+    }
+  }
+  for (const plugin of PLUGIN_REGISTRY) {
+    for (const k of [...plugin.requiredKeys, ...plugin.optionalKeys]) {
+      if (!seen.has(k.secretName)) {
+        seen.add(k.secretName);
+        secrets.push({ name: k.secretName, label: k.description, description: `For ${plugin.name}` });
+      }
+    }
+  }
+  return secrets;
+})();
 
 export default function ApiKeysPage() {
   const deployments = useQuery(api.deployments.list);
