@@ -1,32 +1,4 @@
-import { PLUGIN_REGISTRY, SKILL_REGISTRY, OPENCLAW_VERSION } from "@dynoclaw/shared";
-
-// Known secrets that may exist in Secret Manager.
-// The startup script always tries to fetch all of them, so re-deploys and
-// reboots work even if the user didn't re-enter keys in the wizard.
-export const KNOWN_SECRETS = [
-  "telegram-bot-token",
-  "google-ai-api-key",
-  "openai-api-key",
-  "openrouter-api-key",
-  "anthropic-api-key",
-  "postiz-api-key",
-  "postiz-url",
-  "convex-url",
-  "beehiiv-api-key",
-  "beehiiv-publication-id",
-  "twitter-bearer-token",
-  "brave-search-api-key",
-  "drive-oauth-client-id",
-  "drive-oauth-client-secret",
-  "drive-oauth-refresh-token",
-  "drive-media-folder-id",
-  "gmail-oauth-refresh-token",
-  "hubspot-api-key",
-  "zoho-client-id",
-  "zoho-client-secret",
-  "zoho-refresh-token",
-  "zoho-data-center",
-];
+import { PLUGIN_REGISTRY, SKILL_REGISTRY, OPENCLAW_VERSION, getAllSecretNames } from "@dynoclaw/shared";
 
 export function generateWebStartupScript(config: {
   gcpProjectId: string;
@@ -36,9 +8,10 @@ export function generateWebStartupScript(config: {
   enabledPlugins: string[];
   enabledSkills: string[];
 }): string {
-  // Build the union of known secrets + any user-provided keys
+  // Derive all secret names from the plugin registry + platform secrets
+  const registrySecrets = getAllSecretNames(); // all plugins, not just enabled
   const allSecretNames = [
-    ...new Set([...KNOWN_SECRETS, ...Object.keys(config.apiKeys).filter((k) => config.apiKeys[k])]),
+    ...new Set([...registrySecrets, ...Object.keys(config.apiKeys).filter((k) => config.apiKeys[k])]),
   ];
 
   const secretFetches = allSecretNames
@@ -193,6 +166,28 @@ if [ ! -f "\${MARKER}" ]; then
   echo "==> Installing OpenClaw..."
   npm install -g openclaw@${OPENCLAW_VERSION}
 
+  echo "==> Installing browser dependencies..."
+  apt-get install -y chromium xvfb
+  npm install -g agent-browser
+  npx playwright install --with-deps chromium
+
+  echo "==> Setting up virtual display..."
+  cat > /etc/systemd/system/xvfb.service <<'XVFBEOF'
+[Unit]
+Description=Virtual Framebuffer Display
+Before=openclaw.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/Xvfb :99 -screen 0 1280x720x24
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+XVFBEOF
+  systemctl daemon-reload
+  systemctl enable --now xvfb
+
   mkdir -p "\${OPENCLAW_DIR}"
   touch "\${MARKER}"
 fi
@@ -215,9 +210,16 @@ fetch_secret() {
 echo "==> Fetching secrets..."
 ${secretFetches}
 
+# Brave search key fallback (wizard bug created wrong name before fix)
+if [ -z "\${BRAVE_SEARCH_API_KEY}" ]; then
+  BRAVE_SEARCH_API_KEY="$(fetch_secret brave-api-key || true)"
+fi
+
 # ── Environment file ─────────────────────────────────────────────
 cat > /etc/openclaw.env <<ENVFILE
 ${envFileEntries}${geminiAlias}
+DISPLAY=:99
+DBUS_SESSION_BUS_ADDRESS=disabled:
 ENVFILE
 chmod 600 /etc/openclaw.env
 
@@ -231,8 +233,14 @@ ${skillDownloads}
 
 # ── Write full openclaw.json (heredoc with bash var expansion) ───
 echo "==> Writing OpenClaw configuration..."
-GATEWAY_TOKEN="\$(openssl rand -hex 32)"
 mkdir -p /root/.openclaw
+if [ -f /root/.openclaw/.gateway-token ]; then
+  GATEWAY_TOKEN="\$(cat /root/.openclaw/.gateway-token)"
+else
+  GATEWAY_TOKEN="\$(openssl rand -hex 32)"
+  echo "\${GATEWAY_TOKEN}" > /root/.openclaw/.gateway-token
+  chmod 600 /root/.openclaw/.gateway-token
+fi
 cat > /root/.openclaw/openclaw.json <<CFGEOF
 ${configJsonStr}
 CFGEOF
@@ -248,9 +256,10 @@ printf '}}' >> /tmp/auth-profiles.json
 mv /tmp/auth-profiles.json /root/.openclaw/agents/main/agent/auth-profiles.json
 echo "==> Auth profiles written"
 
-# ── Write default SOUL.md ────────────────────────────────────────
-echo "==> Writing agent identity..."
+# ── Write default SOUL.md (only if missing) ─────────────────────
 mkdir -p /root/.openclaw/workspace
+if [ ! -f /root/.openclaw/workspace/SOUL.md ]; then
+echo "==> Writing agent identity..."
 cat > /root/.openclaw/workspace/SOUL.md <<'SOULEOF'
 # SOUL.md - Who You Are
 
@@ -288,6 +297,7 @@ Your responses are rendered in Telegram, which supports Markdown. Format every r
 Each session, you wake up fresh. These files are your memory. Read them. Update them. They're how you persist.
 SOULEOF
 echo "==> Agent identity written"
+fi
 
 # ── Systemd unit ─────────────────────────────────────────────────
 cat > /etc/systemd/system/openclaw.service <<UNIT

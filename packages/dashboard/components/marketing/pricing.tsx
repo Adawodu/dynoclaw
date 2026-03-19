@@ -13,6 +13,8 @@ const fallbackPlans = [
   {
     name: "Starter",
     price: "$49",
+    priceLabel: "/mo",
+    setupPrice: null as string | null,
     description: "For individuals getting started with AI automation.",
     features: [
       "1 GCP deployment",
@@ -23,10 +25,13 @@ const fallbackPlans = [
     ],
     cta: "Start Free Trial",
     highlighted: false,
+    billingType: "subscription" as const,
   },
   {
     name: "Pro",
     price: "$149",
+    priceLabel: "/mo",
+    setupPrice: null as string | null,
     description: "For teams that need full power and flexibility.",
     features: [
       "3 GCP deployments",
@@ -38,10 +43,13 @@ const fallbackPlans = [
     ],
     cta: "Start Free Trial",
     highlighted: true,
+    billingType: "subscription" as const,
   },
   {
     name: "Enterprise",
     price: "Custom",
+    priceLabel: "",
+    setupPrice: null as string | null,
     description: "For organizations with advanced security and scale needs.",
     features: [
       "Unlimited deployments",
@@ -53,12 +61,24 @@ const fallbackPlans = [
     ],
     cta: "Contact Sales",
     highlighted: false,
+    billingType: "subscription" as const,
   },
 ];
 
 function formatPrice(cents: number): string {
   if (cents === 0) return "Custom";
   return `$${(cents / 100).toFixed(0)}`;
+}
+
+function getPriceLabel(billingType: string): string {
+  if (billingType === "one_time") return "";
+  return "/mo";
+}
+
+function getDefaultCta(billingType: string, priceAmountCents: number): string {
+  if (priceAmountCents === 0) return "Contact Sales";
+  if (billingType === "one_time") return "Get Started";
+  return "Start Free Trial";
 }
 
 export function Pricing() {
@@ -69,11 +89,16 @@ export function Pricing() {
       ? dbPlans.map((p) => ({
           name: p.name,
           price: formatPrice(p.priceAmountCents),
+          priceLabel: getPriceLabel(p.billingType ?? "subscription"),
+          setupPrice:
+            p.billingType === "subscription_plus_setup" && p.setupFeeCents
+              ? formatPrice(p.setupFeeCents)
+              : null,
           description: p.description,
           features: p.features,
-          cta:
-            p.priceAmountCents === 0 ? "Contact Sales" : "Start Free Trial",
+          cta: p.ctaText || getDefaultCta(p.billingType ?? "subscription", p.priceAmountCents),
           highlighted: p.highlighted,
+          billingType: p.billingType ?? "subscription",
         }))
       : fallbackPlans;
 
@@ -104,12 +129,25 @@ export function Pricing() {
             )}
             <CardContent className="flex flex-1 flex-col p-6">
               <h3 className="text-lg font-semibold">{plan.name}</h3>
+
+              {/* Pricing display */}
               <div className="mt-2">
                 <span className="text-4xl font-extrabold">{plan.price}</span>
-                {plan.price !== "Custom" && (
-                  <span className="text-muted-foreground">/mo</span>
+                {plan.priceLabel && (
+                  <span className="text-muted-foreground">{plan.priceLabel}</span>
                 )}
               </div>
+              {plan.setupPrice && (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  + {plan.setupPrice} one-time setup
+                </p>
+              )}
+              {plan.billingType === "one_time" && plan.price !== "Custom" && (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  one-time payment
+                </p>
+              )}
+
               <p className="mt-2 text-sm text-muted-foreground">
                 {plan.description}
               </p>

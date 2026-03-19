@@ -8,6 +8,7 @@ const relevantEvents = new Set([
   "customer.subscription.created",
   "customer.subscription.updated",
   "customer.subscription.deleted",
+  "checkout.session.completed",
 ]);
 
 function getConvex() {
@@ -55,6 +56,35 @@ export async function POST(req: NextRequest) {
   }
 
   if (!relevantEvents.has(event.type)) {
+    return NextResponse.json({ received: true });
+  }
+
+  // Handle one-time payment completions (service orders)
+  if (event.type === "checkout.session.completed") {
+    const session = event.data.object as Stripe.Checkout.Session;
+    const billingType = session.metadata?.billingType;
+    const sessionUserId = session.metadata?.userId;
+    const planId = session.metadata?.planId;
+
+    if (billingType === "one_time" && sessionUserId && planId) {
+      try {
+        // Look up the plan to get the slug
+        const plans = await convex.query(api.pricingPlans.list, {});
+        const plan = plans.find((p) => p._id === planId);
+
+        await convex.mutation(api.serviceOrders.create, {
+          userId: sessionUserId,
+          planId: planId as any,
+          planSlug: plan?.slug ?? "unknown",
+          stripeSessionId: session.id,
+          stripePaymentIntentId: typeof session.payment_intent === "string" ? session.payment_intent : undefined,
+          amountCents: session.amount_total ?? 0,
+        });
+      } catch (err) {
+        console.error("Failed to create service order:", err);
+      }
+    }
+
     return NextResponse.json({ received: true });
   }
 

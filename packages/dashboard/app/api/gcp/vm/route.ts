@@ -3,7 +3,8 @@ import { ConvexHttpClient } from "convex/browser";
 import { api } from "@convex/_generated/api";
 import { Id } from "@convex/_generated/dataModel";
 import { getGcpToken } from "@/lib/gcp-auth";
-import { startInstance, stopInstance, resetInstance } from "@/lib/gcp-rest";
+import { startInstance, stopInstance, resetInstance, setInstanceMetadata } from "@/lib/gcp-rest";
+import { generateWebStartupScript } from "@/lib/startup-script";
 
 export async function POST(req: NextRequest) {
   const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
@@ -48,9 +49,36 @@ export async function POST(req: NextRequest) {
       case "stop":
         await stopInstance(gcpToken, gcpProjectId, gcpZone, vmName);
         break;
-      case "reset":
+      case "reset": {
+        // Regenerate startup script with latest config before restarting
+        const pluginConfigs = await convex.query(api.pluginConfigs.listByDeployment, {
+          deploymentId: deploymentId as Id<"deployments">,
+        });
+        const skillConfigs = await convex.query(api.skillConfigs.listByDeployment, {
+          deploymentId: deploymentId as Id<"deployments">,
+        });
+        const enabledPlugins = (pluginConfigs ?? [])
+          .filter((p: { enabled: boolean }) => p.enabled)
+          .map((p: { pluginId: string }) => p.pluginId);
+        const enabledSkills = (skillConfigs ?? [])
+          .filter((s: { enabled: boolean }) => s.enabled)
+          .map((s: { skillId: string }) => s.skillId);
+
+        const startupScript = generateWebStartupScript({
+          gcpProjectId,
+          apiKeys: {},
+          branding: deployment.branding,
+          models: deployment.models,
+          enabledPlugins,
+          enabledSkills,
+        });
+
+        await setInstanceMetadata(gcpToken, gcpProjectId, gcpZone, vmName, [
+          { key: "startup-script", value: startupScript },
+        ]);
         await resetInstance(gcpToken, gcpProjectId, gcpZone, vmName);
         break;
+      }
       default:
         return NextResponse.json(
           { error: `Unknown action: ${action}` },

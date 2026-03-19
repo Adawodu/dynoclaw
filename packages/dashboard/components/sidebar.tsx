@@ -21,6 +21,7 @@ import {
   Menu,
   FileText,
   Users,
+  Presentation,
 } from "lucide-react";
 import { LogoIcon } from "@/components/logo";
 import { useQuery } from "convex/react";
@@ -50,6 +51,7 @@ const adminItems = [
   { href: "/admin/pricing", label: "Pricing", icon: ShieldCheck },
   { href: "/admin/cms", label: "CMS", icon: FileText },
   { href: "/admin/users", label: "Users", icon: Users },
+  { href: "/webinar-admin", label: "Webinar", icon: Presentation },
 ];
 
 function NavContent({ onNavigate }: { onNavigate?: () => void }) {

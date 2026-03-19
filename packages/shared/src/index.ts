@@ -15,6 +15,8 @@ export type {
 
 export {
   PLUGIN_REGISTRY,
+  PLATFORM_SECRETS,
+  getAllSecretNames,
   getPluginById,
   getRequiredApiKeys,
 } from "./plugins";
