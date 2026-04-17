@@ -235,6 +235,10 @@ else
   echo "==> OpenClaw already at \${DESIRED_VERSION}, skipping upgrade"
 fi
 
+# ── Resolve VM identity ───────────────────────────────────────────
+PROJECT_ID="${config.gcpProjectId}"
+VM_NAME="$(curl -s -H 'Metadata-Flavor: Google' http://169.254.169.254/computeMetadata/v1/instance/name 2>/dev/null || hostname)"
+
 # ── Grant SA secret access scoped to this VM's secrets ───────────
 # IAM condition restricts access to secrets prefixed with this VM's name.
 # This prevents cross-tenant secret access in multi-tenant managed projects.
@@ -256,9 +260,6 @@ if [ -n "\${SA_EMAIL}" ]; then
 fi
 
 # ── Fetch secrets ─────────────────────────────────────────────────
-PROJECT_ID="${config.gcpProjectId}"
-# Get this VM's name from metadata server (used to namespace secrets per deployment)
-VM_NAME="$(curl -s -H 'Metadata-Flavor: Google' http://169.254.169.254/computeMetadata/v1/instance/name 2>/dev/null || hostname)"
 
 fetch_secret() {
   # Try namespaced secret first (vmname--secretname), fall back to global
