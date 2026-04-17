@@ -28,6 +28,11 @@ export function WizardShell({
   const isLast = currentStep === steps.length - 1;
 
   async function handleDeploy() {
+    // Validate: Secured mode requires Telegram user ID
+    if (state.securityMode === "secured" && !state.telegramUserId?.trim()) {
+      setError("Secured mode requires your Telegram User ID. Go back to the Setup step and enter it.");
+      return;
+    }
     setDeploying(true);
     setError(null);
     setWarning(null);

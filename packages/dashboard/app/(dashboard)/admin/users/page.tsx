@@ -159,8 +159,8 @@ function DeploymentCard({ deployment }: { deployment: DeploymentRecord }) {
           <span className="text-muted-foreground">Security</span>
           <span className={deployment.securityMode === "full-power" ? "text-yellow-400" : "text-green-400"}>
             {deployment.securityMode === "full-power"
-              ? "Full Power — no approvals, open Telegram"
-              : "Secured — approvals required, paired Telegram"}
+              ? "Full Power — no approvals"
+              : "Secured — approvals required"}
           </span>
         </div>
       </div>

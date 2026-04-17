@@ -79,6 +79,7 @@ export default defineSchema({
       fallbacks: v.array(v.string()),
     }),
     securityMode: v.optional(v.union(v.literal("secured"), v.literal("full-power"))),
+    telegramUserId: v.optional(v.string()),
     deployedAt: v.number(),
     lastHealthCheck: v.optional(v.number()),
     lastHealthStatus: v.optional(v.string()),
