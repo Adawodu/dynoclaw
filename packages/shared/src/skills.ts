@@ -121,6 +121,15 @@ export const SKILL_REGISTRY: SkillMeta[] = [
     requiredPlugins: [],
   },
   {
+    id: "meeting-debrief",
+    name: "Meeting Debrief",
+    description:
+      "Process meeting transcripts into structured debriefs with action items, recommendations, entity extraction, and Excalidraw visualizations",
+    cron: null,
+    cronDescription: "On-demand only",
+    requiredPlugins: [],
+  },
+  {
     id: "metric-health-echo",
     name: "MetricHealth Echo",
     description:
