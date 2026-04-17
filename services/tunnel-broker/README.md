@@ -49,6 +49,10 @@ To test a real tunnel locally you need `gcloud auth application-default login` a
 
 ## Deploy to Cloud Run
 
+**Auto-deploy**: A Cloud Build trigger watches `services/tunnel-broker/**` on the `main` branch and deploys automatically. See `cloudbuild.yaml`.
+
+**Manual deploy** (if needed):
+
 ```bash
 gcloud run deploy dynoclaw-tunnel-broker \
   --source . \
@@ -70,3 +74,6 @@ The service account needs `roles/iap.tunnelResourceAccessor` on the managed VMs.
 - **Per-request tunnel**: no connection pooling. Each HTTP request/WebSocket opens a fresh IAP tunnel. Simpler than SID resumption, and Cloud Run request lifetimes are short (max 1 hr) anyway.
 - **Flow control**: ACKs sent when unacked bytes exceed `2 * 16384` (matches gcloud's delayed-ack heuristic).
 - **Header rewriting**: `X-Frame-Options` and `Content-Security-Policy` (`frame-ancestors`) are stripped from upstream responses so the OpenClaw UI can be iframed.
+- **Rate limiting**: 60 JWT-authenticated requests/min + 200 asset requests/min per IP. Returns 429 with `Retry-After: 60`.
+- **Asset cache**: JWT-authenticated requests cache the deployment target for 10 minutes. Asset requests use the cache. Single-tenant invariant: `__asset__` paths only resolve when exactly one deployment is cached.
+- **Security modes**: The broker itself doesn't enforce security modes — those are configured in the OpenClaw gateway on the VM. The broker only validates JWT ownership and proxies traffic.

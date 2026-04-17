@@ -85,10 +85,10 @@
 **Consequences**: Zero-code skill creation — just write Markdown. Skills can reference any registered tool. Trade-off: less deterministic than coded workflows. Skill quality depends on prompt engineering.
 
 ### DD-013: Pin OpenClaw Version
-**Date**: 2026-02-22 (updated 2026-02-27)
+**Date**: 2026-02-22 (updated 2026-02-27, version bumped to 2026.4.8 on 2026-04-10)
 **Status**: Updated
 **Context**: OpenClaw `2026.2.22-2` introduced a Telegram regression — polling never starts after gateway boot. Pinned to `2026.2.17`. Tested `2026.2.26` on 2026-02-27: Telegram polling works, WhatsApp listener active, delivery queue recovery functional. The `2026.2.26` release includes Telegram/DM allowlist runtime inheritance fixes that resolved the regression.
-**Decision**: Pin to `2026.2.26`. Startup scripts use `openclaw@2026.2.26`. Continue pinning rather than using `@latest` to avoid future regressions.
+**Decision**: Pin to `2026.4.8` (current). Startup scripts use `openclaw@2026.4.8`. Continue pinning rather than using `@latest` to avoid future regressions.
 **Consequences**: Unlocks new channel support (WhatsApp, Discord, Google Chat, Signal, etc.) for future integrations. Must still manually test before bumping the pinned version.
 
 ### DD-014: Lazy Stripe Client Initialization
@@ -111,3 +111,31 @@
 **Context**: Needed to store generated media (images/videos) in Google Drive. Service account approach initially used but discovered SA keys have 0 storage quota on personal Gmail.
 **Decision**: Use OAuth2 refresh token flow for `adawodu27@gmail.com`. Store OAuth client ID, secret, and refresh token in GCP Secret Manager.
 **Consequences**: Full Drive access under personal account. Requires manual refresh token setup. If token expires, media uploads to Drive will fail (Convex storage still works as primary).
+
+### DD-017: Security Mode (Secured vs Full Power)
+**Date**: 2026-04-17
+**Status**: Accepted
+**Context**: Customers need flexibility in how much autonomy their AI teammate has, but the platform must protect users by default and maintain admin visibility for liability.
+**Decision**: Two security modes configurable at deploy time: Secured (default) enables Telegram pairing, exec approvals, and plugin approvals. Full Power disables all approvals and opens Telegram to all users. The choice is persisted in Convex and visible to admins.
+**Consequences**: Non-technical users get safe defaults. Power users get full autonomy. Admins can see each user's security posture for advisory. Mode is changeable via Settings page.
+
+### DD-018: Per-VM Secret Namespacing with IAM Conditions
+**Date**: 2026-04-17
+**Status**: Accepted
+**Context**: In the managed GCP project, multiple customers' VMs share the same Secret Manager. Previously, VMs had project-wide secretAccessor role, meaning any VM could read any secret.
+**Decision**: Secrets are namespaced as `<vmname>--<secretname>`. IAM conditions scope each VM's service account to only access secrets prefixed with its own name. A second condition allows access to non-namespaced (global) secrets for backward compatibility.
+**Consequences**: Cross-tenant secret access eliminated. Legacy secrets still accessible. Slight IAM policy complexity increase.
+
+### DD-019: Cloud Build Auto-Deploy for Tunnel Broker
+**Date**: 2026-04-17
+**Status**: Accepted
+**Context**: The tunnel broker on Cloud Run required manual `gcloud run deploy` after every code change. Easy to forget, causing production to drift from main.
+**Decision**: GCP Cloud Build trigger watches `services/tunnel-broker/**` on the main branch. On change, it builds the Docker image, pushes to Artifact Registry, and deploys to Cloud Run automatically.
+**Consequences**: Zero-touch deploys for the broker. Dashboard still deploys via Vercel (separate pipeline). Build logs visible in GCP Console.
+
+### DD-020: Remove Legacy Unauthenticated Access
+**Date**: 2026-04-17
+**Status**: Accepted
+**Context**: Early Convex queries used `resolveUserWithLegacy` which returned ownerless data for unauthenticated requests (pre-multi-tenant pattern from when Jonnymate was the only user).
+**Decision**: Replaced all `resolveUserWithLegacy` calls with `requireUser`. All Convex queries now require authentication. No more `__legacy__` sentinel or unauthenticated data access.
+**Consequences**: Stronger security posture. Any remaining unauthenticated canvas/VM calls will fail until migrated. Legacy data without userId is only accessible via admin queries.

@@ -49,8 +49,8 @@ TypeScript types and registries shared between dashboard and infrastructure.
 
 | File | Responsibility |
 |------|---------------|
-| `src/plugins.ts` | `PLUGIN_REGISTRY`: metadata for all 7 plugins (required keys, optional keys) |
-| `src/skills.ts` | `SKILL_REGISTRY`: metadata for all 6 skills (cron schedules, required plugins) |
+| `src/plugins.ts` | `PLUGIN_REGISTRY`: metadata for all 17 plugins (required keys, optional keys) |
+| `src/skills.ts` | `SKILL_REGISTRY`: metadata for all 21 skills (cron schedules, required plugins) |
 | `src/presets.ts` | Deploy presets (social-media-manager, content-creator, full-stack) |
 | `src/types.ts` | Shared TypeScript interfaces |
 
@@ -78,6 +78,17 @@ OpenClaw tool plugins that extend the AI agent's capabilities.
 | `github` | Read code, create branches, commit, open PRs |
 | `beehiiv` | Newsletter draft creation |
 | `twitter-research` | Tweet search and trend research |
+| `clarify-ai` | CRM: contact search, lead management, deal pipeline |
+| `agentmail` | Dedicated agent email inbox (send/receive/list) |
+| `carousel-gen` | HTML→PNG carousel and comic brief generator |
+| `youtube-transcriber` | YouTube video transcript extraction |
+| `job-search` | Job listing search and tracking |
+| `hubspot` | HubSpot CRM integration |
+| `zoho` | Zoho CRM integration |
+| `web-tools` | Website crawling, PDF reading, file search |
+| `video-gen` | Video generation (Veo + Sora) |
+| `dynoclux` | Privacy enforcement (inbox scanning, unsubscribe) |
+| `dynosist` | Email assistant (Gmail drafts) |
 
 ### 6. Skills (`skills/`)
 
@@ -91,6 +102,33 @@ Markdown-defined AI workflows executed by the OpenClaw agent.
 | `newsletter-writer` | Weekly Tue 2pm UTC | Draft newsletter from knowledge base |
 | `engagement-monitor` | Weekly Fri 6pm UTC | Analyze social media performance |
 | `job-hunter` | On-demand | Search and summarize relevant job postings |
+| `growth-hacker` | On-demand | Growth strategy and marketing tactics |
+| `product-update` | On-demand | Product changelog and update drafts |
+| `agentmail` | On-demand | Email inbox management |
+| `agent-browser` | On-demand | Browser automation tasks |
+| `comic-brief` | On-demand | HTML comic brief generation |
+| `crm-pipeline` | On-demand | CRM pipeline management |
+| `metric-health-echo` | On-demand | System health monitoring |
+| `company-intel` | On-demand | Company research and intelligence |
+| `network-scan` | On-demand | Professional network analysis |
+| `job-scout` | On-demand | Job market scanning |
+| `agency-pack-sales` | On-demand | Sales agency pack (bundled skills) |
+| `agency-pack-marketing` | On-demand | Marketing agency pack (bundled skills) |
+| `agency-pack-engineering` | On-demand | Engineering agency pack (bundled skills) |
+
+### 7. Tunnel Broker (`services/tunnel-broker/`)
+
+Cloud Run service that proxies browser requests to per-user GCP VMs via IAP-for-TCP.
+
+| Aspect | Detail |
+|--------|--------|
+| Runtime | Cloud Run (managed) |
+| Auth | JWT with 5-minute TTL |
+| Rate Limiting | 60 auth requests / 200 asset requests per minute per IP |
+| Caching | Asset caching with single-tenant invariant |
+| Deploy | Auto-deploys via Cloud Build trigger on main branch changes to `services/tunnel-broker/**` |
+
+The broker eliminates the need for public IPs on user VMs. Browser-based tools (e.g., agent-browser) route through the broker, which authenticates via JWT and tunnels traffic to the target VM using IAP-for-TCP. The single-tenant invariant ensures cached assets are never served cross-tenant.
 
 ---
 
@@ -127,7 +165,7 @@ Markdown-defined AI workflows executed by the OpenClaw agent.
    - Create firewall rules (IAP SSH only + deny-all)
    - Create Cloud NAT (router + NAT config)
    - Generate startup script (embeds full OpenClaw config)
-   - Create VM (e2-small, Debian 12, no public IP)
+   - Create VM (e2-medium, Debian 12, no public IP)
 5. Save deployment record + configs to Convex
 6. VM boots, startup script runs:
    - Install Node.js 22 + OpenClaw (first boot)
@@ -215,7 +253,7 @@ Written to `/root/.openclaw/openclaw.json` at boot:
 - `gateway.bind`: `loopback` (no external access)
 - `gateway.auth.token`: Random 32-byte hex (generated at deploy)
 - `channels.telegram.enabled`: `true`
-- `channels.telegram.dmPolicy`: `pairing`
+- `channels.telegram.dmPolicy`: `configurable (paired or open, based on security mode)`
 - `channels.telegram.groupPolicy`: `disabled`
 - `models.default`: User-selected primary model
 - `models.fallbacks`: User-selected fallback chain
