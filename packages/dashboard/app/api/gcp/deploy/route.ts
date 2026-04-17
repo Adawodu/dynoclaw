@@ -71,9 +71,13 @@ export async function POST(req: NextRequest) {
     convexToken = authResult.convexToken;
   }
 
-  // For managed deploys, make VM name unique per user
+  // For managed deploys, create a readable VM name from the bot name + short unique suffix.
+  // GCP VM names: lowercase letters, numbers, hyphens only, max 63 chars, must start with letter.
+  const sanitize = (s: string) =>
+    s.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
+  const suffix = Date.now().toString(36).slice(-6);
   const finalVmName = isManaged
-    ? `${vmName}-${Date.now().toString(36)}`
+    ? `oc-${sanitize(branding.botName || "agent")}-${suffix}`
     : vmName;
 
   try {
