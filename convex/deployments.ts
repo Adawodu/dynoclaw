@@ -17,6 +17,7 @@ export const create = mutation({
       primary: v.string(),
       fallbacks: v.array(v.string()),
     }),
+    securityMode: v.optional(v.union(v.literal("secured"), v.literal("full-power"))),
   },
   handler: async (ctx, args) => {
     const userId = await requireUser(ctx);

@@ -31,6 +31,18 @@ export function StepConfirm({ state }: Props) {
           <Row label="Machine" value={state.machineType} />
         </Section>
 
+        <Section title="Security">
+          <Row
+            label="Mode"
+            value={state.securityMode === "full-power" ? "Full Power (no approvals)" : "Secured (approvals required)"}
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            {state.securityMode === "full-power"
+              ? "Your bot will run commands and plugins without asking. Telegram is open to all users."
+              : "Your bot will ask for approval before running commands or plugins. Telegram requires pairing."}
+          </p>
+        </Section>
+
         <Section title="Branding">
           <Row label="Name" value={state.branding.botName} />
           <Row label="Personality" value={state.branding.personality} />

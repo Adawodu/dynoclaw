@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireUser, optionalUser, resolveUserWithLegacy } from "./lib/auth";
+import { requireUser, optionalUser } from "./lib/auth";
 
 export const store = mutation({
   args: {
@@ -27,23 +27,16 @@ export const list = query({
   args: {
     tag: v.optional(v.string()),
     limit: v.optional(v.number()),
-    userId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const userId = await resolveUserWithLegacy(ctx, args.userId);
+    const userId = await requireUser(ctx);
     const limit = args.limit ?? 20;
 
-    let entries;
-    if (userId === "__legacy__") {
-      const all = await ctx.db.query("knowledge").order("desc").take(limit * 5);
-      entries = all.filter((e) => !e.userId).slice(0, limit);
-    } else {
-      entries = await ctx.db
-        .query("knowledge")
-        .withIndex("by_userId", (q) => q.eq("userId", userId))
-        .order("desc")
-        .take(limit);
-    }
+    const entries = await ctx.db
+      .query("knowledge")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .order("desc")
+      .take(limit);
 
     if (args.tag) {
       return entries.filter((e) => e.tags.includes(args.tag!));
@@ -84,14 +77,11 @@ export const updateEmbedding = mutation({
 });
 
 export const getById = query({
-  args: { id: v.id("knowledge"), userId: v.optional(v.string()) },
+  args: { id: v.id("knowledge") },
   handler: async (ctx, args) => {
-    const userId = await resolveUserWithLegacy(ctx, args.userId);
+    const userId = await requireUser(ctx);
     const entry = await ctx.db.get(args.id);
     if (!entry) return null;
-    if (userId === "__legacy__") {
-      return !entry.userId ? entry : null;
-    }
     return entry.userId === userId ? entry : null;
   },
 });

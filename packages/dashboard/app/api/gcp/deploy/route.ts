@@ -209,6 +209,7 @@ export async function POST(req: NextRequest) {
       models,
       enabledPlugins,
       enabledSkills,
+      securityMode: body.securityMode ?? "secured",
     });
 
     // 7. Create VM
@@ -245,6 +246,7 @@ export async function POST(req: NextRequest) {
             primary: models.primary,
             fallbacks: models.fallbacks,
           },
+          securityMode: body.securityMode ?? "secured",
         });
 
         // Register API keys in Convex
