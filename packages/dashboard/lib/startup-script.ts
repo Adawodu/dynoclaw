@@ -8,8 +8,10 @@ export function generateWebStartupScript(config: {
   enabledPlugins: string[];
   enabledSkills: string[];
   securityMode?: "secured" | "full-power";
+  telegramUserId?: string;
 }): string {
   const isFullPower = config.securityMode === "full-power";
+  const telegramId = config.telegramUserId?.trim();
   // Derive all secret names from the plugin registry + platform secrets
   const registrySecrets = getAllSecretNames(); // all plugins, not just enabled
   const allSecretNames = [
@@ -94,12 +96,15 @@ curl -sfL "${repoBase}/plugins/${p}/openclaw.plugin.json" -o "\${DEST}/openclaw.
     channels: {
       telegram: {
         enabled: true,
-        // Secured: only paired users can DM the bot
-        // Full Power: anyone can DM the bot
-        dmPolicy: isFullPower ? "open" : "paired",
+        // Telegram is always responsive. If a user ID is provided, only that
+        // user can interact. Otherwise open to all.
+        // Security difference is in the approvals block:
+        // - Secured: bot asks permission before running commands or plugins
+        // - Full Power: bot runs everything without asking
+        dmPolicy: "open",
         botToken: "${TELEGRAM_BOT_TOKEN}",
-        allowFrom: isFullPower ? ["*"] : [],
-        groupPolicy: isFullPower ? "open" : "paired",
+        allowFrom: telegramId ? [telegramId] : ["*"],
+        groupPolicy: "open",
       },
     },
     gateway: {

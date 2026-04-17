@@ -1,6 +1,8 @@
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Server, Cloud, Check, Shield, Zap, Info } from "lucide-react";
 import type { WizardState } from "@/app/(dashboard)/deploy/page";
 
@@ -42,12 +44,12 @@ const securityModes = [
     icon: Shield,
     title: "Secured",
     badge: "Recommended",
-    description: "Your AI teammate requires Telegram pairing and asks permission before running commands or using plugins.",
+    description: "Your AI teammate asks permission before running commands or using plugins. You stay in control.",
     details: [
-      "Telegram pairing required — only you can chat with your bot",
-      "Command execution requires your approval",
-      "Plugin actions require your approval",
-      "Best for: business use, client-facing bots, shared workspaces",
+      "Bot asks for your approval before executing commands",
+      "Plugin actions require your confirmation",
+      "You can chat freely — approvals only for actions",
+      "Best for: business use, client-facing bots, new users",
     ],
   },
   {
@@ -57,9 +59,9 @@ const securityModes = [
     badge: "Advanced",
     description: "Your AI teammate runs autonomously — no approvals needed. Full access to all tools and commands.",
     details: [
-      "Telegram open to all — anyone can message your bot",
       "Commands run without approval",
       "Plugins execute without approval",
+      "Bot acts immediately on your requests",
       "Best for: personal automation, development, power users",
     ],
   },
@@ -202,6 +204,48 @@ export function StepHosting({ state, update }: Props) {
           </div>
         </div>
       )}
+
+      {/* Telegram Access */}
+      <div>
+        <h2 className="text-base font-semibold">Telegram Access</h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          {state.securityMode === "secured"
+            ? "Only you will be able to chat with your bot. Enter your Telegram user ID below."
+            : "Anyone can message your bot. Optionally restrict access to your Telegram ID."}
+        </p>
+      </div>
+
+      <Card>
+        <CardContent className="p-5 space-y-3">
+          <div className="space-y-2">
+            <Label htmlFor="telegramUserId">
+              Your Telegram User ID {state.securityMode === "secured" && <span className="text-red-500">*</span>}
+            </Label>
+            <Input
+              id="telegramUserId"
+              placeholder="e.g. 123456789"
+              value={state.telegramUserId}
+              onChange={(e) => update({ telegramUserId: e.target.value.replace(/[^0-9]/g, "") })}
+            />
+          </div>
+          <div className="flex gap-3 rounded-md bg-muted/50 p-3">
+            <Info className="h-4 w-4 shrink-0 text-muted-foreground mt-0.5" />
+            <div className="text-xs text-muted-foreground space-y-1">
+              <p className="font-medium">How to find your Telegram ID:</p>
+              <ol className="list-decimal list-inside space-y-0.5">
+                <li>Open Telegram and search for <span className="font-mono bg-muted px-1 rounded">@userinfobot</span></li>
+                <li>Send it any message</li>
+                <li>It replies with your numeric ID (e.g. <span className="font-mono bg-muted px-1 rounded">123456789</span>)</li>
+              </ol>
+              <p className="mt-1">
+                {state.securityMode === "secured"
+                  ? "Your bot will only respond to messages from this Telegram account."
+                  : "Leave blank to allow anyone, or enter your ID to restrict access."}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -210,6 +210,7 @@ export async function POST(req: NextRequest) {
       enabledPlugins,
       enabledSkills,
       securityMode: body.securityMode ?? "secured",
+      telegramUserId: body.telegramUserId ?? "",
     });
 
     // 7. Create VM
@@ -247,6 +248,7 @@ export async function POST(req: NextRequest) {
             fallbacks: models.fallbacks,
           },
           securityMode: body.securityMode ?? "secured",
+          telegramUserId: body.telegramUserId ?? "",
         });
 
         // Register API keys in Convex

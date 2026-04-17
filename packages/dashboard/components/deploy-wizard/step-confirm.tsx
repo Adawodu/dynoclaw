@@ -36,11 +36,10 @@ export function StepConfirm({ state }: Props) {
             label="Mode"
             value={state.securityMode === "full-power" ? "Full Power (no approvals)" : "Secured (approvals required)"}
           />
-          <p className="text-xs text-muted-foreground mt-1">
-            {state.securityMode === "full-power"
-              ? "Your bot will run commands and plugins without asking. Telegram is open to all users."
-              : "Your bot will ask for approval before running commands or plugins. Telegram requires pairing."}
-          </p>
+          <Row
+            label="Telegram Access"
+            value={state.telegramUserId ? `Only user ${state.telegramUserId}` : "Open to all"}
+          />
         </Section>
 
         <Section title="Branding">

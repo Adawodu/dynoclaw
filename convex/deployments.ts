@@ -18,6 +18,7 @@ export const create = mutation({
       fallbacks: v.array(v.string()),
     }),
     securityMode: v.optional(v.union(v.literal("secured"), v.literal("full-power"))),
+    telegramUserId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await requireUser(ctx);
