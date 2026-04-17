@@ -24,12 +24,12 @@
 └────────┬──────────────────────────────┬─────────────────────────┘
          │                              │
          ▼                              ▼
-┌─────────────────┐          ┌─────────────────────────┐
-│  Vercel (CDN)   │          │  Per-User GCP VM        │
-│  Next.js 14     │          │  OpenClaw Gateway       │
-│  Dashboard      │          │  (loopback:18789)       │
-│  + API Routes   │          │  + Plugins + Skills     │
-└───┬─────┬───┬───┘          └──┬───────┬──────┬───────┘
+┌─────────────────┐  ┌──────────────┐  ┌─────────────────────────┐
+│  Vercel (CDN)   │  │Tunnel Broker │  │  Per-User GCP VM        │
+│  Next.js 14     │  │(Cloud Run)   │  │  OpenClaw Gateway       │
+│  Dashboard      │  │ IAP-for-TCP  │  │  (loopback:18789)       │
+│  + API Routes   │  │  proxy       │  │  + Plugins + Skills     │
+└───┬─────┬───┬───┘  └──────────────┘  └──┬───────┬──────┬───────┘
     │     │   │                 │       │      │
     ▼     ▼   ▼                 ▼       ▼      ▼
 ┌──────┐┌──────┐┌──────┐  ┌──────┐┌──────┐┌────────┐
@@ -70,8 +70,8 @@
 - Customer portal for self-service billing management
 
 ### GCP (Per-User VM Infrastructure)
-- Compute Engine VMs (e2-small, Debian 12, no external IP)
-- Secret Manager (API keys stored per-project)
+- Compute Engine VMs (e2-medium, Debian 12, no external IP)
+- Secret Manager (API keys namespaced per-VM with IAM conditions)
 - Cloud NAT (outbound internet for VMs)
 - IAP SSH tunnels (admin access)
 - Service accounts (openclaw-sa with secretmanager.secretAccessor)
@@ -98,6 +98,9 @@
 | GitHub | Code operations | `github-token` (GCP Secret) | Optional |
 | Beehiiv | Newsletter | `beehiiv-api-key` (GCP Secret) | Optional |
 | Google Drive | Media storage | OAuth2 refresh token (GCP Secret) | Optional |
+| Clarify.ai | CRM | `clarify-api-key` (GCP Secret) | Optional |
+| AgentMail | Email inbox | `agentmail-api-key` (GCP Secret) | Optional |
+| YouTube Transcriber | Video transcripts | N/A (public API) | Optional |
 
 ## Deployment Topology
 
@@ -111,7 +114,7 @@
 - **VM**: `openclaw-vm` on e2-small, us-central1-a
 - **Purpose**: Production instance (Bayo's daily-use agent)
 - **Access**: IAP SSH only, no public IP
-- **OpenClaw version**: Pinned to `2026.2.17`
+- **OpenClaw version**: Pinned to `2026.4.8`
 
 ### User VMs (GCP — per-user projects)
 - **Provisioned by**: Dashboard deploy API route
