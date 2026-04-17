@@ -12,12 +12,12 @@ import { api } from "@convex/_generated/api";
 const fallbackPlans = [
   {
     name: "Starter",
-    price: "$49",
+    price: "$79",
     priceLabel: "/mo",
     setupPrice: null as string | null,
-    description: "For individuals getting started with AI automation.",
+    description: "Managed hosting — we handle the infrastructure.",
     features: [
-      "1 GCP deployment",
+      "Managed VM (e2-medium)",
       "5 plugins",
       "3 scheduled skills",
       "Community support",
@@ -29,12 +29,12 @@ const fallbackPlans = [
   },
   {
     name: "Pro",
-    price: "$149",
+    price: "$199",
     priceLabel: "/mo",
     setupPrice: null as string | null,
-    description: "For teams that need full power and flexibility.",
+    description: "Managed hosting with unlimited power and flexibility.",
     features: [
-      "3 GCP deployments",
+      "Managed VM (e2-standard-2)",
       "Unlimited plugins",
       "Unlimited skills",
       "Priority support",
@@ -46,17 +46,35 @@ const fallbackPlans = [
     billingType: "subscription" as const,
   },
   {
-    name: "Enterprise",
-    price: "Custom",
-    priceLabel: "",
+    name: "Agency",
+    price: "$399",
+    priceLabel: "/mo",
     setupPrice: null as string | null,
-    description: "For organizations with advanced security and scale needs.",
+    description: "Multi-agent deployment for agencies and teams.",
     features: [
-      "Unlimited deployments",
-      "Unlimited everything",
-      "Dedicated support",
-      "SLA guarantee",
-      "SSO & audit logs",
+      "3 agent instances",
+      "Unlimited plugins & skills",
+      "Priority support + SLA",
+      "Team management dashboard",
+      "Custom branding",
+      "Dedicated onboarding",
+    ],
+    cta: "Start Free Trial",
+    highlighted: false,
+    billingType: "subscription" as const,
+  },
+  {
+    name: "Enterprise",
+    price: "$999",
+    priceLabel: "/mo",
+    setupPrice: null as string | null,
+    description: "Self-hosted in your own GCP project with dedicated support.",
+    features: [
+      "Deploy to your cloud",
+      "Unlimited plugins & skills",
+      "Dedicated support + SLA",
+      "Full data ownership",
+      "Org policy compliant",
       "Custom integrations",
     ],
     cta: "Contact Sales",
@@ -110,11 +128,11 @@ export function Pricing() {
           <span className="gradient-brand-text">pricing</span>
         </h2>
         <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-          Start with a 14-day free trial. No credit card required.
+          Managed or self-hosted. Start with a 14-day free trial.
         </p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {plans.map((plan) => (
           <Card
             key={plan.name}

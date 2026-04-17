@@ -8,7 +8,7 @@ import { SocialProof } from "@/components/marketing/social-proof";
 export const metadata: Metadata = {
   title: "DynoClaw — Enterprise AI Teammate Platform",
   description:
-    "Deploy an always-on AI agent to your GCP project with plugins, scheduled skills, and enterprise controls.",
+    "Deploy an always-on AI agent — managed by us or in your own cloud — with plugins, scheduled skills, and enterprise controls.",
 };
 
 export default function LandingPage() {

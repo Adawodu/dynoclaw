@@ -1,4 +1,4 @@
-export const OPENCLAW_VERSION = "2026.3.8";
+export const OPENCLAW_VERSION = "2026.4.8";
 
 export type {
   DeployConfig,

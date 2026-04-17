@@ -1,6 +1,6 @@
 import { Type } from "@sinclair/typebox";
 
-const API_BASE = "https://api.agentmail.to/v1";
+const API_BASE = "https://api.agentmail.to/v0";
 
 function json(data: unknown) {
   return {
@@ -136,7 +136,7 @@ const agentmailPlugin = {
         if (params.bcc) body.bcc = params.bcc.split(",").map((e: string) => e.trim());
         if (params.inReplyTo) body.in_reply_to = params.inReplyTo;
 
-        const result = await agentmailApi(apiKey, `inboxes/${encodeURIComponent(inbox)}/messages`, {
+        const result = await agentmailApi(apiKey, `inboxes/${encodeURIComponent(inbox)}/messages/send`, {
           method: "POST",
           body: JSON.stringify(body),
         });

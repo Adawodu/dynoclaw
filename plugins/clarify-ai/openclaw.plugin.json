@@ -1,0 +1,12 @@
+{
+  "id": "clarify-ai",
+  "name": "Clarify.ai CRM",
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "clarifyApiKey": { "type": "string" },
+      "clarifyWorkspaceSlug": { "type": "string" }
+    },
+    "required": ["clarifyApiKey", "clarifyWorkspaceSlug"]
+  }
+}

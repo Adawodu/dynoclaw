@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
+import { SignedIn, SignedOut, SignInButton, SignUpButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { LogoIcon } from "@/components/logo";
 import { useQuery } from "convex/react";
@@ -66,11 +66,11 @@ export function MarketingNav() {
                 Sign in
               </Button>
             </SignInButton>
-            <Link href="/overview">
+            <SignUpButton mode="modal">
               <Button size="sm" className="gradient-brand text-white">
                 Get Started
               </Button>
-            </Link>
+            </SignUpButton>
           </SignedOut>
           <SignedIn>
             <Link href="/overview">

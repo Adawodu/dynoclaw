@@ -1,17 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getGcpToken } from "@/lib/gcp-auth";
+import { getGcpTokenForProject } from "@/lib/gcp-auth";
 import { getSerialPortOutput } from "@/lib/gcp-rest";
 
 export async function GET(req: NextRequest) {
-  const authResult = await getGcpToken();
-  if (!authResult) {
-    return NextResponse.json(
-      { error: "Google account not connected." },
-      { status: 400 }
-    );
-  }
-  const { gcpToken } = authResult;
-
   const { searchParams } = new URL(req.url);
   const project = searchParams.get("project");
   const zone = searchParams.get("zone");
@@ -24,8 +15,16 @@ export async function GET(req: NextRequest) {
     );
   }
 
+  const authResult = await getGcpTokenForProject(project);
+  if (!authResult) {
+    return NextResponse.json(
+      { error: "Cannot access GCP project." },
+      { status: 400 }
+    );
+  }
+
   try {
-    const output = await getSerialPortOutput(gcpToken, project, zone, vm);
+    const output = await getSerialPortOutput(authResult.gcpToken, project, zone, vm);
     return NextResponse.json({ output });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";

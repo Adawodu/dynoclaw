@@ -15,8 +15,32 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useState } from "react";
-import { ShieldCheck, Users } from "lucide-react";
+import {
+  ShieldCheck,
+  Users,
+  ChevronDown,
+  ChevronRight,
+  Server,
+  Cloud,
+  Activity,
+  AlertCircle,
+} from "lucide-react";
 import type { Id } from "@convex/_generated/dataModel";
+
+interface DeploymentRecord {
+  _id: Id<"deployments">;
+  vmName: string;
+  gcpProjectId: string;
+  gcpZone: string;
+  machineType: string;
+  status: string;
+  branding: { botName: string; personality: string };
+  models: { primary: string; fallbacks: string[] };
+  deployedAt: number;
+  lastHealthCheck: number | null;
+  lastHealthStatus: string | null;
+  error: string | null;
+}
 
 interface UserRecord {
   _id: Id<"users">;
@@ -29,8 +53,116 @@ interface UserRecord {
   lastSeenAt: number;
   createdAt: number;
   deploymentCount: number;
+  deployments: DeploymentRecord[];
   subscriptionStatus: string | null;
   subscriptionPlan: string | null;
+  subscriptionTrialEnd: number | null;
+  subscriptionCancelAtPeriodEnd: boolean | null;
+}
+
+function formatDate(ts: number) {
+  return new Date(ts).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function relativeTime(ts: number) {
+  const diff = Date.now() - ts;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+function statusColor(status: string) {
+  switch (status) {
+    case "running":
+    case "active":
+      return "bg-green-500/20 text-green-400";
+    case "trialing":
+      return "bg-blue-500/20 text-blue-400";
+    case "provisioning":
+      return "bg-yellow-500/20 text-yellow-400";
+    case "stopped":
+    case "canceled":
+    case "past_due":
+      return "bg-red-500/20 text-red-400";
+    default:
+      return "bg-muted text-muted-foreground";
+  }
+}
+
+function DeploymentCard({ deployment }: { deployment: DeploymentRecord }) {
+  const isManaged = deployment.gcpProjectId === "dynoclaw-managed";
+
+  return (
+    <div className="rounded-lg border border-border/50 bg-card/30 p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {isManaged ? (
+            <Server className="h-4 w-4 text-primary" />
+          ) : (
+            <Cloud className="h-4 w-4 text-muted-foreground" />
+          )}
+          <span className="font-medium text-sm">{deployment.vmName}</span>
+          <Badge variant="secondary" className={`text-xs ${statusColor(deployment.status)}`}>
+            {deployment.status}
+          </Badge>
+        </div>
+        <span className="text-xs text-muted-foreground">
+          {formatDate(deployment.deployedAt)}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-xs">
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Hosting</span>
+          <span>{isManaged ? "DynoClaw Managed" : "Self-Hosted"}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Machine</span>
+          <span>{deployment.machineType}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Project</span>
+          <span className="truncate ml-2">{deployment.gcpProjectId}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Zone</span>
+          <span>{deployment.gcpZone}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Bot Name</span>
+          <span>{deployment.branding.botName}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Model</span>
+          <span className="truncate ml-2">{deployment.models.primary.split("/").pop()}</span>
+        </div>
+      </div>
+
+      {deployment.lastHealthCheck && (
+        <div className="flex items-center gap-1.5 text-xs">
+          <Activity className="h-3 w-3" />
+          <span className="text-muted-foreground">
+            Health: {deployment.lastHealthStatus ?? "unknown"} · {relativeTime(deployment.lastHealthCheck)}
+          </span>
+        </div>
+      )}
+
+      {deployment.error && (
+        <div className="flex items-center gap-1.5 text-xs text-red-400">
+          <AlertCircle className="h-3 w-3" />
+          <span className="truncate">{deployment.error}</span>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function AdminUsersPage() {
@@ -41,6 +173,7 @@ export default function AdminUsersPage() {
   const setRole = useMutation(api.users.setRole);
   const setStatus = useMutation(api.users.setStatus);
 
+  const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [editing, setEditing] = useState<UserRecord | null>(null);
   const [confirmSuspend, setConfirmSuspend] = useState<UserRecord | null>(null);
   const [confirmRole, setConfirmRole] = useState<{
@@ -74,24 +207,10 @@ export default function AdminUsersPage() {
     );
   }
 
-  function formatDate(ts: number) {
-    return new Date(ts).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  }
-
-  function relativeTime(ts: number) {
-    const diff = Date.now() - ts;
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return "Just now";
-    if (mins < 60) return `${mins}m ago`;
-    const hours = Math.floor(mins / 60);
-    if (hours < 24) return `${hours}h ago`;
-    const days = Math.floor(hours / 24);
-    return `${days}d ago`;
-  }
+  const totalDeployments = users?.reduce((sum, u) => sum + u.deploymentCount, 0) ?? 0;
+  const activeUsers = users?.filter((u) => u.status === "active").length ?? 0;
+  const trialingUsers = users?.filter((u) => u.subscriptionStatus === "trialing").length ?? 0;
+  const paidUsers = users?.filter((u) => u.subscriptionStatus === "active" && u.subscriptionPlan).length ?? 0;
 
   return (
     <div className="space-y-6">
@@ -101,6 +220,36 @@ export default function AdminUsersPage() {
           <Badge variant="secondary">{users.length} users</Badge>
         )}
       </div>
+
+      {/* Summary Stats */}
+      {users && users.length > 0 && (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <Card>
+            <CardContent className="p-4 text-center">
+              <p className="text-2xl font-bold">{activeUsers}</p>
+              <p className="text-xs text-muted-foreground">Active Users</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 text-center">
+              <p className="text-2xl font-bold">{trialingUsers}</p>
+              <p className="text-xs text-muted-foreground">Trialing</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 text-center">
+              <p className="text-2xl font-bold">{paidUsers}</p>
+              <p className="text-xs text-muted-foreground">Paid</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 text-center">
+              <p className="text-2xl font-bold">{totalDeployments}</p>
+              <p className="text-xs text-muted-foreground">Deployments</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {users === undefined ? (
         <div className="space-y-4">
@@ -119,70 +268,104 @@ export default function AdminUsersPage() {
         </Card>
       ) : (
         <div className="space-y-3">
-          {users.map((user) => (
-            <Card
-              key={user._id}
-              className={user.status === "suspended" ? "opacity-50" : ""}
-            >
-              <CardContent className="flex items-center gap-4 py-4">
-                {user.imageUrl ? (
-                  <img
-                    src={user.imageUrl}
-                    alt=""
-                    className="h-10 w-10 rounded-full"
-                  />
-                ) : (
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-sm font-medium">
-                    {(user.name ?? user.email)?.[0]?.toUpperCase() ?? "?"}
-                  </div>
-                )}
-
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="truncate font-medium">
-                      {user.name ?? "—"}
-                    </span>
-                    {user.role === "admin" && (
-                      <Badge className="text-xs">Admin</Badge>
+          {users.map((user) => {
+            const isExpanded = expandedUser === user._id;
+            return (
+              <Card
+                key={user._id}
+                className={user.status === "suspended" ? "opacity-50" : ""}
+              >
+                <CardContent className="py-4">
+                  <div className="flex items-center gap-4">
+                    {user.imageUrl ? (
+                      <img
+                        src={user.imageUrl}
+                        alt=""
+                        className="h-10 w-10 rounded-full"
+                      />
+                    ) : (
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-sm font-medium">
+                        {(user.name ?? user.email)?.[0]?.toUpperCase() ?? "?"}
+                      </div>
                     )}
-                    {user.status === "suspended" && (
-                      <Badge variant="destructive" className="text-xs">
-                        Suspended
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="truncate text-sm text-muted-foreground">
-                    {user.email}
-                  </p>
-                </div>
 
-                <div className="hidden gap-6 text-sm sm:flex">
-                  <div className="text-center">
-                    <p className="text-muted-foreground">Plan</p>
-                    <p className="font-medium">
-                      {user.subscriptionPlan ?? "—"}
-                    </p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-muted-foreground">Deploys</p>
-                    <p className="font-medium">{user.deploymentCount}</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-muted-foreground">Last seen</p>
-                    <p className="font-medium">{relativeTime(user.lastSeenAt)}</p>
-                  </div>
-                </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate font-medium">
+                          {user.name ?? "—"}
+                        </span>
+                        {user.role === "admin" && (
+                          <Badge className="text-xs">Admin</Badge>
+                        )}
+                        {user.status === "suspended" && (
+                          <Badge variant="destructive" className="text-xs">
+                            Suspended
+                          </Badge>
+                        )}
+                        {user.subscriptionPlan && (
+                          <Badge variant="secondary" className={`text-xs ${statusColor(user.subscriptionStatus ?? "")}`}>
+                            {user.subscriptionPlan}
+                            {user.subscriptionStatus === "trialing" && " (trial)"}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="truncate text-sm text-muted-foreground">
+                        {user.email}
+                      </p>
+                    </div>
 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setEditing(user)}
-                >
-                  Manage
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
+                    <div className="hidden gap-6 text-sm sm:flex">
+                      <div className="text-center">
+                        <p className="text-muted-foreground">Deploys</p>
+                        <p className="font-medium">{user.deploymentCount}</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-muted-foreground">Last seen</p>
+                        <p className="font-medium">{relativeTime(user.lastSeenAt)}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {user.deploymentCount > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            setExpandedUser(isExpanded ? null : user._id)
+                          }
+                        >
+                          {isExpanded ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
+                          )}
+                        </Button>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEditing(user)}
+                      >
+                        Manage
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Expanded Deployments */}
+                  {isExpanded && user.deployments.length > 0 && (
+                    <div className="mt-4 space-y-3 border-t pt-4">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                        Deployments
+                      </p>
+                      {user.deployments.map((dep) => (
+                        <DeploymentCard key={dep._id} deployment={dep} />
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 
@@ -237,11 +420,37 @@ export default function AdminUsersPage() {
                     )}
                   </span>
                 </div>
+                {editing.subscriptionTrialEnd && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Trial ends</span>
+                    <span>{formatDate(editing.subscriptionTrialEnd)}</span>
+                  </div>
+                )}
+                {editing.subscriptionCancelAtPeriodEnd && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Canceling</span>
+                    <Badge variant="destructive" className="text-xs">
+                      At period end
+                    </Badge>
+                  </div>
+                )}
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Deployments</span>
                   <span>{editing.deploymentCount}</span>
                 </div>
               </div>
+
+              {/* Deployment details in dialog */}
+              {editing.deployments.length > 0 && (
+                <div className="space-y-3 border-t pt-4">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    Deployments
+                  </p>
+                  {editing.deployments.map((dep) => (
+                    <DeploymentCard key={dep._id} deployment={dep} />
+                  ))}
+                </div>
+              )}
 
               <div className="space-y-4 border-t pt-4">
                 <div className="flex items-center justify-between">

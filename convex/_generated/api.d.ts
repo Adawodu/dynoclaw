@@ -20,6 +20,7 @@ import type * as deployJobs from "../deployJobs.js";
 import type * as deployments from "../deployments.js";
 import type * as http from "../http.js";
 import type * as inboxScans from "../inboxScans.js";
+import type * as jobSearch from "../jobSearch.js";
 import type * as knowledge from "../knowledge.js";
 import type * as knowledgeActions from "../knowledgeActions.js";
 import type * as lib_auth from "../lib/auth.js";
@@ -31,9 +32,12 @@ import type * as pluginConfigs from "../pluginConfigs.js";
 import type * as pricingPlans from "../pricingPlans.js";
 import type * as privacyRequests from "../privacyRequests.js";
 import type * as privacyViolations from "../privacyViolations.js";
+import type * as serviceOrders from "../serviceOrders.js";
 import type * as skillConfigs from "../skillConfigs.js";
 import type * as subscriptions from "../subscriptions.js";
 import type * as users from "../users.js";
+import type * as webinarLeads from "../webinarLeads.js";
+import type * as webinarSlides from "../webinarSlides.js";
 
 import type {
   ApiFromModules,
@@ -54,6 +58,7 @@ declare const fullApi: ApiFromModules<{
   deployments: typeof deployments;
   http: typeof http;
   inboxScans: typeof inboxScans;
+  jobSearch: typeof jobSearch;
   knowledge: typeof knowledge;
   knowledgeActions: typeof knowledgeActions;
   "lib/auth": typeof lib_auth;
@@ -65,9 +70,12 @@ declare const fullApi: ApiFromModules<{
   pricingPlans: typeof pricingPlans;
   privacyRequests: typeof privacyRequests;
   privacyViolations: typeof privacyViolations;
+  serviceOrders: typeof serviceOrders;
   skillConfigs: typeof skillConfigs;
   subscriptions: typeof subscriptions;
   users: typeof users;
+  webinarLeads: typeof webinarLeads;
+  webinarSlides: typeof webinarSlides;
 }>;
 
 /**

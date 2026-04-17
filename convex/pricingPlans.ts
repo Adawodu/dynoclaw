@@ -60,6 +60,8 @@ export const upsert = mutation({
   },
 });
 
+
+
 export const remove = mutation({
   args: { id: v.id("pricingPlans") },
   handler: async (ctx, args) => {

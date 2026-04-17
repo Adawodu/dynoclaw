@@ -1,0 +1,11 @@
+{
+  "id": "job-search",
+  "name": "Job Search Pipeline",
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "convexUrl": { "type": "string" }
+    },
+    "required": ["convexUrl"]
+  }
+}

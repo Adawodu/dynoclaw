@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { requireUser } from "./lib/auth";
 
 export const storeSnapshot = mutation({
   args: {
@@ -56,9 +57,10 @@ export const upsertActivity = mutation({
 export const latestSnapshot = query({
   args: {},
   handler: async (ctx) => {
+    const userId = await requireUser(ctx);
     return await ctx.db
       .query("costSnapshots")
-      .withIndex("by_fetchedAt")
+      .withIndex("by_userId_fetchedAt", (q) => q.eq("userId", userId))
       .order("desc")
       .first();
   },
@@ -67,6 +69,7 @@ export const latestSnapshot = query({
 export const recentActivity = query({
   args: { days: v.optional(v.number()) },
   handler: async (ctx, args) => {
+    const userId = await requireUser(ctx);
     const days = args.days ?? 30;
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - days);
@@ -74,7 +77,7 @@ export const recentActivity = query({
 
     const rows = await ctx.db
       .query("openrouterActivity")
-      .withIndex("by_date")
+      .withIndex("by_userId_date", (q) => q.eq("userId", userId))
       .order("desc")
       .collect();
 
@@ -82,7 +85,7 @@ export const recentActivity = query({
   },
 });
 
-// ── Tenant-filtered variants ────────────────────────────────────
+// ── Tenant-filtered variants (kept for backward compat with VM agents) ──
 
 export const latestSnapshotByUser = query({
   args: { userId: v.string() },

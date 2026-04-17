@@ -1,0 +1,27 @@
+{
+  "name": "@dynoclaw/tunnel-broker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cloud Run service that proxies DynoClaw users to their OpenClaw dashboard via IAP-for-TCP.",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "google-auth-library": "^9.14.2",
+    "jose": "^5.9.6",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "@types/ws": "^8.5.13",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

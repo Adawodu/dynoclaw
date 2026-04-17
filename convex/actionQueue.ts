@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { requireUser, resolveUser, resolveUserOrNull, resolveUserWithLegacy } from "./lib/auth";
 
 export const create = mutation({
   args: {
@@ -30,8 +31,9 @@ export const create = mutation({
 });
 
 export const listPending = query({
-  args: {},
-  handler: async (ctx) => {
+  args: { userId: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    await resolveUserWithLegacy(ctx, args.userId);
     return ctx.db
       .query("actionQueue")
       .withIndex("by_status", (q) => q.eq("status", "pending"))
@@ -40,8 +42,9 @@ export const listPending = query({
 });
 
 export const list = query({
-  args: { limit: v.optional(v.number()) },
+  args: { limit: v.optional(v.number()), userId: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    await resolveUserWithLegacy(ctx, args.userId);
     return ctx.db
       .query("actionQueue")
       .withIndex("by_createdAt")

@@ -25,6 +25,7 @@ const fallbackColumns = [
   {
     title: "Legal",
     links: [
+      { label: "Security", href: "/security", isExternal: false },
       { label: "Privacy", href: "/#", isExternal: false },
       { label: "Terms", href: "/#", isExternal: false },
     ],

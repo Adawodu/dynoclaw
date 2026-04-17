@@ -19,9 +19,14 @@ export function StepConfirm({ state }: Props) {
         <CardTitle className="text-base">Review & Deploy</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4 text-sm">
-        <Section title="GCP">
-          <Row label="Project" value={state.gcpProjectId || "(not set)"} />
-          <Row label="Zone" value={state.gcpZone} />
+        <Section title="Hosting">
+          <Row label="Type" value={state.hostingType === "managed" ? "DynoClaw Managed" : "Self-Hosted (Your GCP)"} />
+          {state.hostingType === "self-hosted" && (
+            <>
+              <Row label="Project" value={state.gcpProjectId || "(not set)"} />
+              <Row label="Zone" value={state.gcpZone} />
+            </>
+          )}
           <Row label="VM" value={state.vmName} />
           <Row label="Machine" value={state.machineType} />
         </Section>

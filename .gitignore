@@ -27,3 +27,8 @@ packages/create-dynoclaw/skill-files/
 packages/dashboard/.next/
 packages/dashboard/.env.local
 .vercel
+
+# Internal docs, proposals, and documentation (not for public repo)
+docs/
+DOCUMENTATION/
+proposals/

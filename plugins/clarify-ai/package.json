@@ -1,0 +1,9 @@
+{
+  "name": "openclaw-plugin-clarify-ai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Clarify.ai CRM integration for OpenClaw — search contacts, manage deals, run campaigns, pull meetings",
+  "dependencies": {
+    "@sinclair/typebox": "^0.32.0"
+  }
+}

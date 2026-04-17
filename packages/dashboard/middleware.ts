@@ -23,6 +23,7 @@ const isDashboardRoute = createRouteMatcher([
   "/skills(.*)",
   "/api-keys(.*)",
   "/logs(.*)",
+  "/openclaw(.*)",
   "/settings(.*)",
   "/billing(.*)",
   "/admin(.*)",
@@ -46,7 +47,12 @@ export default clerkMiddleware(async (auth, req) => {
 
   // Dashboard routes — require auth + active subscription/trial
   if (isDashboardRoute(req)) {
-    const { userId, getToken } = await auth.protect();
+    const { userId, getToken } = await auth();
+    if (!userId) {
+      const signInUrl = new URL("/sign-in", req.url);
+      signInUrl.searchParams.set("redirect_url", req.url);
+      return NextResponse.redirect(signInUrl);
+    }
 
     try {
       const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);

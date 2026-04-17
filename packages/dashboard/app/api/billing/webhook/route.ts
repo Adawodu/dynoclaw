@@ -21,6 +21,8 @@ async function planFromPriceId(priceId: string | undefined): Promise<string | un
   // Check env vars first (fast path)
   if (priceId === process.env.STRIPE_STARTER_PRICE_ID) return "starter";
   if (priceId === process.env.STRIPE_PRO_PRICE_ID) return "pro";
+  if (priceId === process.env.STRIPE_AGENCY_PRICE_ID) return "agency";
+  if (priceId === process.env.STRIPE_ENTERPRISE_PRICE_ID) return "enterprise";
 
   // Fall back to checking Convex pricing plans
   try {

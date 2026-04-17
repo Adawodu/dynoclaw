@@ -22,11 +22,41 @@ export function StepApiKeys({ state, update }: Props) {
     .filter(([, v]) => v)
     .map(([k]) => k);
 
-  // Platform secrets that are always required (telegram, openrouter, brave)
-  const requiredPlatformIds = ["telegramBotToken", "openrouterApiKey", "braveSearchApiKey"];
-  const platformKeys = PLATFORM_SECRETS
-    .filter((s) => requiredPlatformIds.includes(s.key))
-    .map((s) => ({ ...s, required: true }));
+  // Derive required model-provider keys from the selected model chain.
+  // Model slugs are "<provider>/<model>" — we parse providers and map to secrets.
+  const providerToPlatformKey: Record<string, string> = {
+    google: "googleAiApiKey",
+    anthropic: "anthropicApiKey",
+    openai: "openaiApiKey",
+    openrouter: "openrouterApiKey",
+  };
+
+  const allModels = [state.models.primary, ...state.models.fallbacks].filter(Boolean);
+  const requiredProviders = new Set<string>();
+  for (const m of allModels) {
+    const provider = m.split("/")[0];
+    if (provider && providerToPlatformKey[provider]) {
+      requiredProviders.add(providerToPlatformKey[provider]);
+    }
+  }
+
+  // Telegram is always required — it's the user interface
+  const requiredPlatformIds = new Set<string>(["telegramBotToken", ...requiredProviders]);
+  const allPlatformKeyIds = new Set(PLATFORM_SECRETS.map((s) => s.key));
+  const optionalPlatformIds = new Set<string>(
+    [...allPlatformKeyIds].filter((k) => !requiredPlatformIds.has(k))
+  );
+  // Brave Search is never required at the platform level (plugin-specific)
+  optionalPlatformIds.add("braveSearchApiKey");
+
+  const platformKeys = [
+    ...PLATFORM_SECRETS
+      .filter((s) => requiredPlatformIds.has(s.key))
+      .map((s) => ({ ...s, required: true })),
+    ...PLATFORM_SECRETS
+      .filter((s) => optionalPlatformIds.has(s.key) && !requiredPlatformIds.has(s.key))
+      .map((s) => ({ ...s, required: false })),
+  ];
 
   const keys = [
     ...platformKeys,

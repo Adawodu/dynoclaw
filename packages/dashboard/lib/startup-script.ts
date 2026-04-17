@@ -72,7 +72,21 @@ curl -sfL "${repoBase}/plugins/${p}/openclaw.plugin.json" -o "\${DEST}/openclaw.
         models: Object.fromEntries(
           [config.models.primary, ...config.models.fallbacks].map((m) => [m, {}])
         ),
+        // Gemini 2.5+ requires thinking mode — "medium" is a safe default.
+        // Without this, all Gemini models reject requests with "Budget 0 is invalid".
+        thinkingDefault: "medium",
       },
+    },
+    // Full tool access — agent can run bash, file ops, web, etc.
+    // Without this, skills that exec commands get blocked.
+    tools: {
+      profile: "full",
+    },
+    // Disable exec approval gate — agent can run commands without manual approval.
+    // Security is handled at the network layer (no public IP, IAP-only access).
+    approvals: {
+      exec: { enabled: false },
+      plugin: { enabled: false },
     },
     channels: {
       telegram: {
@@ -152,7 +166,7 @@ MARKER="/opt/openclaw/.installed"
 if [ ! -f "\${MARKER}" ]; then
   echo "==> Installing dependencies..."
   apt-get update -y
-  apt-get install -y git curl build-essential python3
+  apt-get install -y git curl build-essential python3 python-is-python3
 
   echo "==> Installing Node 22..."
   curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
@@ -193,17 +207,36 @@ XVFBEOF
 fi
 
 # ── Upgrade OpenClaw if version differs ────────────────────────────
+# Extract just the version number from "OpenClaw X.Y.Z (hash)" → "X.Y.Z"
 DESIRED_VERSION="${OPENCLAW_VERSION}"
-CURRENT_VERSION="$(openclaw --version 2>/dev/null || echo 'none')"
+CURRENT_VERSION="$(openclaw --version 2>/dev/null | awk '{print \$2}' || echo 'none')"
 if [ "\${CURRENT_VERSION}" != "\${DESIRED_VERSION}" ]; then
   echo "==> Upgrading OpenClaw \${CURRENT_VERSION} → \${DESIRED_VERSION}..."
   npm install -g "openclaw@\${DESIRED_VERSION}"
+else
+  echo "==> OpenClaw already at \${DESIRED_VERSION}, skipping upgrade"
+fi
+
+# ── Grant SA secret access from inside the project ───────────────
+# (Done here instead of via external API to respect org policies like Domain Restricted Sharing)
+SA_EMAIL="\$(curl -s -H 'Metadata-Flavor: Google' http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email 2>/dev/null || true)"
+if [ -n "\${SA_EMAIL}" ]; then
+  echo "==> Granting secret access to \${SA_EMAIL}..."
+  gcloud projects add-iam-policy-binding "${config.gcpProjectId}" \\
+    --member="serviceAccount:\${SA_EMAIL}" \\
+    --role="roles/secretmanager.secretAccessor" \\
+    --condition=None \\
+    --quiet 2>/dev/null || true
 fi
 
 # ── Fetch secrets ─────────────────────────────────────────────────
 PROJECT_ID="${config.gcpProjectId}"
+# Get this VM's name from metadata server (used to namespace secrets per deployment)
+VM_NAME="$(curl -s -H 'Metadata-Flavor: Google' http://169.254.169.254/computeMetadata/v1/instance/name 2>/dev/null || hostname)"
 
 fetch_secret() {
+  # Try namespaced secret first (vmname--secretname), fall back to global
+  gcloud secrets versions access latest --secret="\${VM_NAME}--$1" --project="\${PROJECT_ID}" 2>/dev/null || \
   gcloud secrets versions access latest --secret="$1" --project="\${PROJECT_ID}" 2>/dev/null
 }
 
@@ -254,6 +287,10 @@ SEP=""
 ${authProfileBlocks}
 printf '}}' >> /tmp/auth-profiles.json
 mv /tmp/auth-profiles.json /root/.openclaw/agents/main/agent/auth-profiles.json
+chmod 600 /root/.openclaw/agents/main/agent/auth-profiles.json
+# Also write a top-level symlink-friendly copy for tooling that expects it there
+cp /root/.openclaw/agents/main/agent/auth-profiles.json /root/.openclaw/auth-profiles.json
+chmod 600 /root/.openclaw/auth-profiles.json
 echo "==> Auth profiles written"
 
 # ── Write default SOUL.md (only if missing) ─────────────────────
@@ -292,6 +329,20 @@ Your responses are rendered in Telegram, which supports Markdown. Format every r
 - When in doubt, ask before acting externally.
 - Never send half-baked replies to messaging surfaces.
 
+## Installing New Skills
+
+You can install new skills from ClawHub (the OpenClaw skills marketplace with 49,000+ community skills). When the user asks for a capability you don't have, search for it and install it:
+
+\`\`\`
+openclaw skills search <query>       # Find skills
+openclaw skills info <slug>          # Check details before installing
+openclaw skills install <slug>       # Install to your workspace
+\`\`\`
+
+After installing, let the user know the new skill is available and how to use it (usually as a /command).
+
+If install fails with a security warning, tell the user and suggest they contact their admin (Bayo) to review and install it manually.
+
 ## Continuity
 
 Each session, you wake up fresh. These files are your memory. Read them. Update them. They're how you persist.
@@ -322,6 +373,17 @@ systemctl daemon-reload
 systemctl enable openclaw
 systemctl restart openclaw
 echo "==> OpenClaw gateway started"
+
+# ── IAP-for-TCP DNAT rule ───────────────────────────────────────
+# OpenClaw binds to loopback only, but IAP-for-TCP arrives at the VM's internal IP.
+# This iptables DNAT rule redirects incoming traffic on port 18789 to 127.0.0.1 so the
+# DynoClaw tunnel broker can proxy the OpenClaw dashboard through IAP.
+INTERNAL_IP=$(hostname -I | awk '{print $1}')
+sysctl -w net.ipv4.conf.all.route_localnet=1
+sysctl -w net.ipv4.conf.ens4.route_localnet=1
+iptables -t nat -C PREROUTING -p tcp -d "\${INTERNAL_IP}" --dport 18789 -j DNAT --to-destination 127.0.0.1:18789 2>/dev/null || \
+  iptables -t nat -A PREROUTING -p tcp -d "\${INTERNAL_IP}" --dport 18789 -j DNAT --to-destination 127.0.0.1:18789
+echo "==> IAP DNAT rule applied for dashboard proxy"
 
 # ── First-boot grace restart ────────────────────────────────────
 # On first boot the gateway starts under heavy I/O from plugin installs.

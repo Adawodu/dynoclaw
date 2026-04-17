@@ -51,3 +51,40 @@ export const ingest = action({
     return id;
   },
 });
+
+/**
+ * Backfill embeddings for existing knowledge entries using the current embedding model.
+ * Run this once after switching embedding providers to rebuild the vector index.
+ * Pass batchSize to control how many to process per invocation (default 20).
+ */
+export const reembedBatch = action({
+  args: {
+    offset: v.optional(v.number()),
+    batchSize: v.optional(v.number()),
+  },
+  handler: async (ctx, args): Promise<{ processed: number; nextOffset: number }> => {
+    const batchSize = args.batchSize ?? 20;
+    const offset = args.offset ?? 0;
+
+    const entries: Array<{ _id: Id<"knowledge">; text: string }> = await ctx.runQuery(
+      api.knowledge.listForReembed,
+      { limit: batchSize, offset }
+    );
+
+    let processed = 0;
+    for (const entry of entries) {
+      try {
+        const embedding = await generateEmbedding(entry.text);
+        await ctx.runMutation(api.knowledge.updateEmbedding, {
+          id: entry._id,
+          embedding,
+        });
+        processed++;
+      } catch (err) {
+        console.error(`Failed to re-embed ${entry._id}:`, err);
+      }
+    }
+
+    return { processed, nextOffset: offset + batchSize };
+  },
+});

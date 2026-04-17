@@ -1,21 +1,21 @@
 const steps = [
   {
     num: "01",
-    title: "Connect Your GCP Project",
+    title: "Choose Your Hosting",
     description:
-      "Sign in with Google, grant cloud-platform scope, and DynoClaw gets access to deploy into your project.",
+      "Managed by DynoClaw — we handle the infrastructure. Or self-hosted — deploy to your own GCP project for full data ownership.",
   },
   {
     num: "02",
     title: "Configure Your Teammate",
     description:
-      "Pick a personality, choose plugins (Postiz, Beehiiv, etc.), set skill schedules, and add your API keys.",
+      "Name your bot, choose plugins, set skill schedules, and add your API keys. Works with any model on OpenRouter — Claude, GPT, Gemini, and more.",
   },
   {
     num: "03",
     title: "Deploy & Go",
     description:
-      "One click to provision a VM, install the agent, and start your 24/7 AI teammate. Monitor from the dashboard.",
+      "One click to provision your AI teammate. It starts running 24/7 — content generation, email management, research, and more. Monitor everything from the dashboard.",
   },
 ];
 

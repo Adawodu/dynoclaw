@@ -39,12 +39,13 @@ export default function GuidePage() {
       <Section id="getting-started" title="Getting Started">
         <div className="space-y-4 text-sm text-muted-foreground leading-relaxed">
           <p>
-            DynoClaw deploys a fully configured AI agent into your own Google Cloud project.
-            The agent runs 24/7, equipped with plugins for social media, newsletters, research, and more.
+            DynoClaw deploys a fully configured AI agent — either managed by us or into your own
+            Google Cloud project. The agent runs 24/7, equipped with plugins for social media,
+            newsletters, email management, privacy enforcement, and more.
           </p>
           <ol className="list-decimal list-inside space-y-2">
             <li>Sign up for a DynoClaw account</li>
-            <li>Connect your Google Cloud project (OAuth)</li>
+            <li>Choose your hosting: <strong className="text-foreground">Managed</strong> (we handle infrastructure) or <strong className="text-foreground">Self-Hosted</strong> (your GCP project)</li>
             <li>Configure your agent&apos;s personality, plugins, and skills</li>
             <li>Deploy with one click</li>
           </ol>
@@ -54,24 +55,37 @@ export default function GuidePage() {
         </div>
       </Section>
 
-      <Section id="gcp-setup" title="GCP Setup">
+      <Section id="hosting" title="Hosting Options">
         <div className="space-y-4 text-sm text-muted-foreground leading-relaxed">
+          <h3 className="text-base font-semibold text-foreground">Managed Hosting (Starter & Pro)</h3>
           <p>
-            DynoClaw needs access to your GCP project to create a VM and manage secrets.
-            When you sign in with Google, grant the <code className="rounded bg-card px-1.5 py-0.5 text-xs">cloud-platform</code> scope.
+            We handle the infrastructure. Your AI teammate runs on an isolated VM managed by DynoClaw.
+            No GCP account required — just configure your bot and deploy.
           </p>
-          <h3 className="text-base font-semibold text-foreground">Requirements</h3>
+          <ul className="list-disc list-inside space-y-1">
+            <li>Isolated VM per customer</li>
+            <li>API keys stored in GCP Secret Manager (AES-256 encrypted)</li>
+            <li>Automatic updates and maintenance</li>
+            <li>Data deletion on account cancellation</li>
+          </ul>
+
+          <h3 className="text-base font-semibold text-foreground">Self-Hosted (Enterprise)</h3>
+          <p>
+            Deploy to your own GCP project for full data ownership. DynoClaw creates a VM
+            and configures it, then you own and control everything.
+          </p>
           <ul className="list-disc list-inside space-y-1">
             <li>A GCP project with billing enabled</li>
-            <li>Compute Engine API enabled</li>
-            <li>Secret Manager API enabled</li>
             <li>Owner or Editor role on the project</li>
+            <li>Compute Engine and Secret Manager APIs (auto-enabled during deploy)</li>
+            <li>Compatible with Domain Restricted Sharing and other org policies</li>
           </ul>
           <h3 className="text-base font-semibold text-foreground">What Gets Created</h3>
           <ul className="list-disc list-inside space-y-1">
-            <li>An <code className="rounded bg-card px-1.5 py-0.5 text-xs">e2-small</code> VM (~$12/mo)</li>
+            <li>A VM (<code className="rounded bg-card px-1.5 py-0.5 text-xs">e2-medium</code> default, upgradeable) — infrastructure cost included in managed plans, billed by Google for self-hosted</li>
             <li>Secrets in GCP Secret Manager for API keys</li>
-            <li>A firewall rule for health checks</li>
+            <li>Firewall rules (SSH via IAP only, no public ingress)</li>
+            <li>Cloud NAT for outbound internet without a public IP</li>
           </ul>
         </div>
       </Section>
@@ -79,18 +93,24 @@ export default function GuidePage() {
       <Section id="plugins" title="Plugins">
         <div className="space-y-4 text-sm text-muted-foreground leading-relaxed">
           <p>
-            Plugins extend your AI teammate with new capabilities. Enable them from the Plugins page in your dashboard.
+            17+ plugins extend your AI teammate with new capabilities. Enable them during deploy or from the dashboard.
           </p>
           <h3 className="text-base font-semibold text-foreground">Available Plugins</h3>
           <ul className="list-disc list-inside space-y-1">
             <li><strong className="text-foreground">Postiz</strong> — Post to X/Twitter, Instagram, LinkedIn, and more</li>
             <li><strong className="text-foreground">Beehiiv</strong> — Create newsletter drafts</li>
+            <li><strong className="text-foreground">DynoClux</strong> — Privacy enforcement, inbox scanning, CAN-SPAM compliance</li>
+            <li><strong className="text-foreground">DynoSist</strong> — Gmail draft creation with attachments</li>
+            <li><strong className="text-foreground">AgentMail</strong> — Dedicated agent email inbox</li>
+            <li><strong className="text-foreground">Image/Video Gen</strong> — Generate images via Gemini and videos via Veo</li>
+            <li><strong className="text-foreground">GitHub</strong> — Read code, create branches, open PRs</li>
+            <li><strong className="text-foreground">HubSpot / Zoho</strong> — CRM integration</li>
+            <li><strong className="text-foreground">Web Tools</strong> — Web crawling and PDF extraction</li>
             <li><strong className="text-foreground">Twitter Research</strong> — Search and analyze tweets</li>
-            <li><strong className="text-foreground">Brave Search</strong> — Web search capability</li>
-            <li><strong className="text-foreground">Google Drive</strong> — Save generated media to Drive</li>
+            <li><strong className="text-foreground">Carousel Gen</strong> — HTML-to-PNG carousel images</li>
           </ul>
           <p>
-            Each plugin requires its own API keys, which you configure on the API Keys page.
+            Each plugin requires its own API keys, configured during deploy or on the API Keys page.
           </p>
         </div>
       </Section>
@@ -99,54 +119,65 @@ export default function GuidePage() {
         <div className="space-y-4 text-sm text-muted-foreground leading-relaxed">
           <p>
             Skills are scheduled tasks that your AI teammate runs automatically.
-            Configure cron schedules from the Skills page.
+            Configure cron schedules during deploy or from the Skills page.
           </p>
           <h3 className="text-base font-semibold text-foreground">Examples</h3>
           <ul className="list-disc list-inside space-y-1">
-            <li>Daily content generation at 9am</li>
-            <li>Weekly research reports every Monday</li>
-            <li>Hourly social media monitoring</li>
+            <li><strong className="text-foreground">Daily Briefing</strong> — Morning news across tech, health IT, Africa, and fintech</li>
+            <li><strong className="text-foreground">Content Engine</strong> — Weekly content calendar from trending topics</li>
+            <li><strong className="text-foreground">Daily Posts</strong> — Draft social media posts from your calendar</li>
+            <li><strong className="text-foreground">Newsletter Writer</strong> — Weekly newsletter drafts for Beehiiv</li>
+            <li><strong className="text-foreground">DynoClux Scan</strong> — Daily inbox scan + privacy enforcement</li>
+            <li><strong className="text-foreground">Comic Brief</strong> — Visual daily briefing as a comic strip</li>
           </ul>
-          <p>
-            Skills use cron syntax. You can override the default schedule for each skill.
-          </p>
         </div>
       </Section>
 
       <Section id="api-keys" title="API Keys">
         <div className="space-y-4 text-sm text-muted-foreground leading-relaxed">
           <p>
-            API keys are stored securely in GCP Secret Manager within your own project.
-            DynoClaw never stores your keys on our servers.
+            API keys are stored securely in GCP Secret Manager. For managed hosting, keys are
+            in DynoClaw&apos;s GCP project (isolated per customer). For self-hosted, keys are in
+            your own GCP project.
           </p>
           <h3 className="text-base font-semibold text-foreground">Required Keys</h3>
           <ul className="list-disc list-inside space-y-1">
+            <li><strong className="text-foreground">Telegram Bot Token</strong> — Your bot&apos;s identity on Telegram (from @BotFather)</li>
             <li><strong className="text-foreground">OpenRouter API Key</strong> — Powers the AI models</li>
-            <li><strong className="text-foreground">Google API Key</strong> — For Gemini and other Google services</li>
           </ul>
-          <h3 className="text-base font-semibold text-foreground">Optional Keys</h3>
+          <h3 className="text-base font-semibold text-foreground">Recommended Keys</h3>
           <ul className="list-disc list-inside space-y-1">
-            <li>Postiz API Key</li>
-            <li>Beehiiv API Key</li>
-            <li>Brave Search API Key</li>
-            <li>Twitter Bearer Token</li>
+            <li>Google AI (Gemini) API Key — For image generation and Gemini models</li>
+            <li>Brave Search API Key — For web search capability</li>
+            <li>Anthropic API Key — For Claude models directly</li>
           </ul>
+          <h3 className="text-base font-semibold text-foreground">Plugin-Specific Keys</h3>
+          <p>
+            Each plugin may require additional keys (Postiz, Beehiiv, Twitter, GitHub, HubSpot, etc.).
+            The deploy wizard shows which keys are needed based on your selected plugins.
+          </p>
         </div>
       </Section>
 
       <Section id="billing" title="Billing">
         <div className="space-y-4 text-sm text-muted-foreground leading-relaxed">
+          <p>DynoClaw offers four plans:</p>
+          <ul className="list-disc list-inside space-y-1">
+            <li><strong className="text-foreground">Starter ($79/mo)</strong> — Managed hosting, e2-medium VM, 5 plugins, 3 skills</li>
+            <li><strong className="text-foreground">Pro ($199/mo)</strong> — Managed hosting, e2-standard-2 VM, unlimited plugins & skills</li>
+            <li><strong className="text-foreground">Enterprise ($399/mo)</strong> — Self-hosted in your GCP project, dedicated support, SLA</li>
+            <li><strong className="text-foreground">Launchpad ($999 one-time)</strong> — Done-for-you setup, configuration, and onboarding</li>
+          </ul>
           <p>
-            DynoClaw offers three plans: Starter ($49/mo), Pro ($149/mo), and Enterprise (custom).
-            All plans include a 14-day free trial.
+            All subscription plans include a 14-day free trial. Manage your subscription from the
+            Billing page. You can upgrade, downgrade, or cancel at any time.
           </p>
           <p>
-            Manage your subscription from the Billing page in your dashboard.
-            You can upgrade, downgrade, or cancel at any time through the Stripe customer portal.
+            <strong className="text-foreground">Managed plans:</strong> Infrastructure cost is included in your subscription.
           </p>
           <p>
-            Note: GCP infrastructure costs (VM, secrets, network) are billed directly by Google to your GCP project.
-            DynoClaw pricing covers the platform, plugins, and support.
+            <strong className="text-foreground">Self-hosted plans:</strong> GCP infrastructure costs (~$15-35/mo) are billed directly
+            by Google to your GCP project. DynoClaw pricing covers the platform, plugins, and support.
           </p>
         </div>
       </Section>
@@ -154,14 +185,14 @@ export default function GuidePage() {
       <Section id="faq" title="Frequently Asked Questions">
         <div>
           <FAQ q="What happens when my free trial ends?">
-            You&apos;ll be prompted to choose a plan. If you don&apos;t subscribe, your dashboard
-            access will be paused but your GCP resources will keep running. You can subscribe
-            at any time to regain access.
+            You&apos;ll be prompted to choose a plan. For managed hosting, if you don&apos;t subscribe,
+            your VM will be stopped and dashboard access paused. For self-hosted, your GCP resources
+            continue running but dashboard access is paused. Subscribe at any time to resume.
           </FAQ>
 
-          <FAQ q="Can I use my own GCP project?">
-            Yes — DynoClaw deploys directly into your GCP project. You maintain full ownership
-            and control of all resources. We never access your project without your OAuth consent.
+          <FAQ q="Do I need a GCP account?">
+            Not for managed plans (Starter & Pro) — we handle the infrastructure. For the Enterprise
+            plan (self-hosted), you need a GCP project with billing enabled.
           </FAQ>
 
           <FAQ q="What AI models are supported?">
@@ -170,19 +201,25 @@ export default function GuidePage() {
           </FAQ>
 
           <FAQ q="Is my data secure?">
-            All API keys are stored in GCP Secret Manager within your own project. DynoClaw uses
-            Clerk for authentication and never stores sensitive credentials on our infrastructure.
-            All publishing actions default to draft mode.
+            Yes. Every deployment runs on an isolated VM. API keys are encrypted in GCP Secret Manager
+            (AES-256). We don&apos;t access your conversations or store your API keys on our servers.
+            See our <a href="/security" className="text-primary hover:underline">Security page</a> for details.
           </FAQ>
 
           <FAQ q="Can I cancel at any time?">
-            Yes. You can cancel your subscription from the Billing page. Your access continues
-            until the end of the current billing period.
+            Yes. Cancel from the Billing page. Managed plans: your VM stops at the end of the billing
+            period. Self-hosted: your GCP resources continue running, only dashboard access is paused.
           </FAQ>
 
           <FAQ q="How do I get support?">
-            Starter plans get community support. Pro plans get priority email support.
-            Enterprise plans get a dedicated support channel. Contact us at hello@dynoclaw.com.
+            Starter: community support. Pro: priority email support. Enterprise: dedicated support channel.
+            Contact us at hello@dynoclaw.com.
+          </FAQ>
+
+          <FAQ q="What about HIPAA compliance?">
+            Enterprise customers can deploy to their own GCP project with HIPAA BAA from Google Cloud.
+            DynoClaw as a company does not yet hold independent SOC 2 certification — use self-hosted
+            for compliance-sensitive workloads.
           </FAQ>
         </div>
       </Section>
