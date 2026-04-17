@@ -251,14 +251,22 @@ export default function OpenClawConsolePage() {
         </Card>
       )}
 
-      {/* Info about what's coming */}
+      {/* ClawHub Skills Marketplace */}
       <Card className="border-blue-500/30 bg-blue-500/5">
         <CardContent className="py-4">
           <p className="text-xs font-medium text-blue-400 uppercase tracking-wide mb-1">
-            Coming soon
+            ClawHub — 49,000+ Skills
           </p>
-          <p className="text-sm text-muted-foreground">
-            Phase 2 will embed the OpenClaw console directly in DynoClaw — no terminal required. A Cloud Run tunnel broker will handle the IAP connection transparently.
+          <p className="text-sm text-muted-foreground mb-3">
+            Your AI teammate can install new skills from ClawHub, the OpenClaw skills marketplace. Just message your bot on Telegram:
+          </p>
+          <div className="space-y-1.5 rounded-md border bg-muted/50 p-3 font-mono text-xs">
+            <p><span className="text-blue-400">Search:</span> openclaw skills search &lt;what you need&gt;</p>
+            <p><span className="text-blue-400">Install:</span> openclaw skills install &lt;skill-slug&gt;</p>
+            <p><span className="text-blue-400">Browse:</span> openclaw skills list</p>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            No extra configuration needed — your bot can search, preview, and install skills directly from Telegram.
           </p>
         </CardContent>
       </Card>

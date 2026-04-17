@@ -32,7 +32,8 @@ const ADVANCED_PLUGINS = new Set([
 // Recommended skills
 const RECOMMENDED_SKILLS = new Set([
   "daily-briefing",
-  "comic-brief",
+  "meeting-debrief",
+  "crm-pipeline",
 ]);
 
 export function StepTools({ state, update }: Props) {
@@ -218,6 +219,11 @@ export function StepTools({ state, update }: Props) {
           </CardContent>
         </Card>
       )}
+
+      {/* ClawHub note */}
+      <p className="text-xs text-muted-foreground text-center">
+        Need something specific? Your bot can install from <span className="font-medium text-foreground">49,000+ skills</span> on ClawHub — just message it on Telegram.
+      </p>
     </div>
   );
 }
