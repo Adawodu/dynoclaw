@@ -1,0 +1,8 @@
+{
+  "name": "openclaw-plugin-job-search",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@sinclair/typebox": "^0.32.0"
+  }
+}

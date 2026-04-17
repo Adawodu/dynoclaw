@@ -31,6 +31,55 @@ export async function optionalUser(
   return identity?.subject ?? null;
 }
 
+/**
+ * Resolve userId from auth OR an explicit arg (for VM canvas/agent use).
+ * Dashboard calls pass no userId (uses auth). Canvas/VM calls pass userId explicitly.
+ */
+/**
+ * Resolve userId from auth OR an explicit arg (for VM canvas/agent use).
+ * Dashboard calls pass no userId (uses auth). Canvas/VM calls pass userId explicitly.
+ * Returns null only if both auth and explicit userId are missing.
+ */
+export async function resolveUser(
+  ctx: QueryCtx | MutationCtx | ActionCtx,
+  explicitUserId?: string
+): Promise<string> {
+  if (explicitUserId) return explicitUserId;
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) throw new Error("Not authenticated");
+  return identity.subject;
+}
+
+/**
+ * Like resolveUser but returns null instead of throwing when unauthenticated.
+ * Used by queries that should return empty data for canvas/public access.
+ */
+export async function resolveUserOrNull(
+  ctx: QueryCtx | MutationCtx | ActionCtx,
+  explicitUserId?: string
+): Promise<string | null> {
+  if (explicitUserId) return explicitUserId;
+  const identity = await ctx.auth.getUserIdentity();
+  return identity?.subject ?? null;
+}
+
+/**
+ * Resolve userId with legacy fallback. Returns:
+ * - Explicit userId if provided
+ * - Auth userId if authenticated
+ * - "__legacy__" sentinel if neither (signals: return unscoped/ownerless records)
+ * Used by queries that serve both multi-tenant dashboard AND single-tenant VM canvases.
+ */
+export async function resolveUserWithLegacy(
+  ctx: QueryCtx | MutationCtx | ActionCtx,
+  explicitUserId?: string
+): Promise<string> {
+  if (explicitUserId) return explicitUserId;
+  const identity = await ctx.auth.getUserIdentity();
+  if (identity) return identity.subject;
+  return "__legacy__";
+}
+
 const ADMIN_SUBJECTS = (process.env.ADMIN_USER_IDS ?? "").split(",").filter(Boolean);
 
 export async function requireAdmin(

@@ -22,6 +22,8 @@ import {
   FileText,
   Users,
   Presentation,
+  Briefcase,
+  Terminal,
 } from "lucide-react";
 import { LogoIcon } from "@/components/logo";
 import { useQuery } from "convex/react";
@@ -43,6 +45,7 @@ const navItems = [
   { href: "/skills", label: "Skills", icon: Zap },
   { href: "/api-keys", label: "API Keys", icon: Key },
   { href: "/logs", label: "Logs", icon: ScrollText },
+  { href: "/openclaw", label: "AI Console", icon: Terminal },
   { href: "/settings", label: "Settings", icon: Settings },
   { href: "/billing", label: "Billing", icon: CreditCard },
 ];

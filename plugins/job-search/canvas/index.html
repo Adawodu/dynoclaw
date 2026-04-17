@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Job Search</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0a0a0a;--card:#141414;--border:#222;--text:#e5e5e5;--muted:#737373;--blue:#3b82f6;--green:#22c55e;--yellow:#eab308;--red:#ef4444;--purple:#a855f7;--orange:#f97316;--cyan:#06b6d4}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.5}
+.container{max-width:900px;margin:0 auto;padding:1rem}
+.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem}
+.header h1{font-size:1.3rem;font-weight:700}
+.header-actions{display:flex;gap:0.4rem}
+
+/* Stats */
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:0.5rem;margin-bottom:1rem}
+.stat{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:0.5rem;text-align:center;cursor:pointer;transition:border-color 0.15s}
+.stat:hover{border-color:#444}
+.stat.active{border-color:var(--blue)}
+.stat .n{font-size:1.4rem;font-weight:700}
+.stat .l{font-size:0.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em}
+
+/* Today's Actions — THE MOST IMPORTANT SECTION */
+.today{background:linear-gradient(135deg,#0c1222,#141414);border:1px solid #1e3a5f;border-radius:10px;padding:0.85rem;margin-bottom:1rem}
+.today h2{font-size:0.85rem;font-weight:700;color:var(--cyan);margin-bottom:0.5rem;display:flex;align-items:center;gap:0.4rem}
+.today-item{display:flex;align-items:flex-start;gap:0.5rem;padding:0.4rem 0;border-bottom:1px solid #1a2744;font-size:0.78rem}
+.today-item:last-child{border:none}
+.today-icon{flex-shrink:0;width:18px;text-align:center;font-size:0.75rem}
+.today-action{flex:1}
+.today-action strong{color:var(--text)}
+.today-action .sub{color:var(--muted);font-size:0.72rem}
+.today-btn{padding:0.2rem 0.5rem;font-size:0.68rem;border-radius:4px;cursor:pointer;border:1px solid #1e3a5f;background:transparent;color:var(--cyan);white-space:nowrap;flex-shrink:0}
+.today-btn:hover{background:#172554}
+.today-empty{color:#525252;font-size:0.8rem;text-align:center;padding:0.5rem}
+
+/* Search & Filters */
+.search-bar{position:relative;margin-bottom:0.6rem}
+.search-bar input{width:100%;padding:0.5rem 0.7rem 0.5rem 2rem;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.82rem;outline:none}
+.search-bar input:focus{border-color:var(--blue)}
+.search-bar svg{position:absolute;left:0.6rem;top:50%;transform:translateY(-50%);width:14px;height:14px;color:var(--muted)}
+.filters{display:flex;gap:0.3rem;margin-bottom:0.75rem;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:0.25rem}
+.fil{padding:0.2rem 0.6rem;font-size:0.7rem;border-radius:99px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);white-space:nowrap;transition:all 0.15s}
+.fil:hover{border-color:#444;color:var(--text)}
+.fil.on{background:var(--blue);border-color:var(--blue);color:#fff}
+
+/* Section */
+.section{display:flex;align-items:center;justify-content:space-between;margin:1rem 0 0.5rem;padding-bottom:0.3rem;border-bottom:1px solid var(--border)}
+.section h2{font-size:0.9rem;font-weight:600}
+.section .count{font-size:0.72rem;color:var(--muted)}
+
+/* Job card */
+.job{background:var(--card);border:1px solid var(--border);border-radius:10px;margin-bottom:0.5rem;overflow:hidden;transition:border-color 0.15s}
+.job:hover{border-color:#333}
+.job.stale{opacity:0.4}
+.job-main{padding:0.7rem;cursor:pointer}
+.job-row1{display:flex;align-items:flex-start;justify-content:space-between;gap:0.4rem}
+.job-title{font-size:0.85rem;font-weight:600;line-height:1.3}
+.job-readiness{display:flex;gap:2px;flex-shrink:0}
+.job-readiness .dot{width:8px;height:8px;border-radius:50%}
+.job-company{font-size:0.75rem;color:var(--muted);margin-top:0.1rem}
+.job-row2{display:flex;gap:0.35rem;margin-top:0.35rem;flex-wrap:wrap;align-items:center}
+.job-next{font-size:0.72rem;color:var(--cyan);margin-top:0.3rem;font-style:italic}
+
+/* Badges */
+.b{display:inline-block;font-size:0.63rem;font-weight:600;padding:0.1rem 0.4rem;border-radius:99px;white-space:nowrap}
+.b.found{background:#1e293b;color:#94a3b8}.b.reviewed{background:#172554;color:#93c5fd}.b.applying{background:#422006;color:#fbbf24}.b.applied{background:#1e1b4b;color:#a5b4fc}.b.interviewing{background:#052e16;color:#4ade80}.b.offer{background:#064e3b;color:#6ee7b7}.b.rejected{background:#450a0a;color:#f87171}.b.pass,.b.stale{background:#1a1a1a;color:#525252}
+.b.remote{background:#0c4a6e;color:#7dd3fc}
+.b.score{background:#312e81;color:#c4b5fd}
+.b.not_contacted{background:#1a1a1a;color:#525252}.b.contacted{background:#422006;color:#fbbf24}.b.connected{background:#172554;color:#93c5fd}.b.replied{background:#052e16;color:#4ade80}.b.meeting{background:#064e3b;color:#6ee7b7}.b.referred{background:#4c1d95;color:#c4b5fd}
+
+/* Buttons */
+.btn{padding:0.22rem 0.5rem;font-size:0.68rem;font-weight:600;border-radius:5px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all 0.15s;white-space:nowrap}
+.btn:hover{border-color:#555;color:var(--text)}
+.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+.btn.danger{color:var(--red);border-color:#7f1d1d}
+.btn.sm{padding:0.15rem 0.35rem;font-size:0.63rem}
+.ss{padding:0.18rem 0.3rem;font-size:0.68rem;border-radius:4px;border:1px solid var(--border);background:var(--bg);color:var(--muted);cursor:pointer}
+
+/* Expandable detail */
+.job-detail{display:none;padding:0 0.7rem 0.7rem;border-top:1px solid var(--border)}
+.job-detail.open{display:block}
+.detail-section{margin-top:0.5rem}
+.detail-section h4{font-size:0.72rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.03em;margin-bottom:0.25rem}
+.detail-text{font-size:0.75rem;color:#a3a3a3;line-height:1.4}
+
+/* Company brief */
+.co-brief{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.5rem;margin-bottom:0.4rem}
+.co-brief .co-name{font-weight:600;font-size:0.8rem}
+.co-brief .co-meta{font-size:0.7rem;color:var(--muted);margin-top:0.15rem}
+.co-brief .co-why{font-size:0.73rem;color:#a3a3a3;margin-top:0.25rem;line-height:1.3}
+
+/* Contact card */
+.ct{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.45rem 0.55rem;margin-bottom:0.35rem}
+.ct-top{display:flex;justify-content:space-between;align-items:center;gap:0.3rem;flex-wrap:wrap}
+.ct-name{font-size:0.78rem;font-weight:600}
+.ct-title{font-size:0.7rem;color:var(--muted)}
+.ct-actions{display:flex;gap:0.25rem;align-items:center;flex-wrap:wrap}
+
+/* Outreach */
+.outreach{background:#0d1117;border:1px solid #1e293b;border-radius:6px;padding:0.45rem;margin-top:0.3rem;font-size:0.73rem}
+.outreach-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:0.2rem;gap:0.3rem;flex-wrap:wrap}
+.outreach-msg{color:#a3a3a3;white-space:pre-line;line-height:1.35;font-size:0.71rem}
+
+/* Modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;z-index:100;padding:1rem}
+.modal{background:var(--card);border:1px solid #333;border-radius:12px;padding:1.25rem;width:min(480px,100%);max-height:85vh;overflow-y:auto}
+.modal h2{font-size:1rem;margin-bottom:0.6rem}
+.modal label{display:block;font-size:0.73rem;color:var(--muted);margin-top:0.5rem}
+.modal input,.modal select,.modal textarea{width:100%;padding:0.45rem;font-size:16px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);margin-top:0.15rem}
+.modal textarea{min-height:60px;resize:vertical;font-size:0.82rem}
+.modal .btn-row{display:flex;gap:0.4rem;margin-top:0.85rem;justify-content:flex-end}
+.modal .btn-row .btn{padding:0.4rem 0.85rem;font-size:0.8rem}
+
+/* Activity */
+.act-item{display:flex;align-items:flex-start;gap:0.4rem;padding:0.3rem 0;font-size:0.73rem;border-bottom:1px solid #111}
+.act-item:last-child{border:none}
+.act-time{color:#525252;font-size:0.65rem;margin-left:auto;white-space:nowrap}
+
+/* Velocity */
+.velocity{display:grid;grid-template-columns:repeat(3,1fr);gap:0.5rem;margin-bottom:1rem}
+.vel-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:0.6rem;text-align:center}
+.vel-card .vel-n{font-size:1.3rem;font-weight:700}
+.vel-card .vel-l{font-size:0.6rem;color:var(--muted);text-transform:uppercase}
+.vel-card .vel-target{font-size:0.6rem;color:#525252;margin-top:0.15rem}
+
+.empty{text-align:center;padding:2rem;color:#525252;font-size:0.82rem}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--green);color:#052e16;padding:0.4rem 1rem;border-radius:8px;font-size:0.8rem;font-weight:600;z-index:200;opacity:0;transition:opacity 0.3s;pointer-events:none}
+.lk{color:var(--blue);text-decoration:none;font-size:0.7rem}
+.lk:hover{text-decoration:underline}
+.alert{background:#422006;border:1px solid #78350f;border-radius:8px;padding:0.55rem 0.7rem;margin-bottom:0.6rem;font-size:0.78rem;color:#fbbf24;display:flex;justify-content:space-between;align-items:center;gap:0.4rem;flex-wrap:wrap}
+
+@media(max-width:640px){
+  .container{padding:0.65rem}
+  .stats{grid-template-columns:repeat(3,1fr);gap:0.35rem}
+  .stat .n{font-size:1.1rem}
+  .velocity{grid-template-columns:repeat(3,1fr);gap:0.35rem}
+  .vel-card .vel-n{font-size:1rem}
+  .header h1{font-size:1.1rem}
+  .job-row1{flex-direction:column}
+  .job-readiness{margin-top:0.2rem}
+  .ct-top{flex-direction:column;align-items:flex-start}
+  .ct-actions{margin-top:0.3rem;width:100%}
+  .modal .btn-row{flex-direction:column}
+  .modal .btn-row .btn{width:100%;text-align:center}
+  .today-item{flex-wrap:wrap}
+  .today-btn{margin-top:0.2rem}
+  .outreach-head{flex-direction:column;align-items:flex-start}
+}
+@media(max-width:380px){.stats{grid-template-columns:repeat(2,1fr)}.velocity{grid-template-columns:1fr 1fr 1fr}}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>Job Search</h1>
+    <div class="header-actions">
+      <button class="btn" onclick="openAddContact()">+ Contact</button>
+      <button class="btn" onclick="openAddCompany()">+ Company</button>
+      <button class="btn primary" onclick="openAddJob()">+ Job</button>
+    </div>
+  </div>
+  <div id="alerts"></div>
+  <div id="today"></div>
+  <div id="stats" class="stats"></div>
+  <div id="velocity"></div>
+  <div class="search-bar">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <input id="search" type="text" placeholder="Search jobs, companies, contacts..." oninput="render()">
+  </div>
+  <div id="filters" class="filters"></div>
+  <div id="content"></div>
+  <div id="toast" class="toast"></div>
+  <div id="modal-root"></div>
+</div>
+
+<script>
+const CX="https://fortunate-seahorse-362.convex.cloud";
+let D={jobs:[],companies:[],contacts:[],outreach:[],activity:[]};
+let filter="all",searchQ="",expandedJobs=new Set();
+
+async function cq(p,a={}){const r=await fetch(CX+"/api/query",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({path:p,args:a,format:"json"})});const d=await r.json();if(d.status==="error")throw new Error(d.errorMessage);return d.value}
+async function cm(p,a={}){const r=await fetch(CX+"/api/mutation",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({path:p,args:a,format:"json"})});const d=await r.json();if(d.status==="error")throw new Error(d.errorMessage);return d.value}
+function esc(s){if(!s)return"";const d=document.createElement("div");d.textContent=s;return d.innerHTML}
+function ago(ts){if(!ts)return"—";const m=Math.floor((Date.now()-ts)/60000);if(m<60)return m+"m";const h=Math.floor(m/60);if(h<24)return h+"h";const dd=Math.floor(h/24);return dd+"d"}
+function daysAgo(ts){return ts?Math.floor((Date.now()-ts)/86400000):999}
+function toast(msg){const t=document.getElementById("toast");t.textContent=msg;t.style.opacity="1";setTimeout(()=>t.style.opacity="0",2000)}
+function showModal(h){document.getElementById("modal-root").innerHTML=`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal">${h}</div></div>`}
+function closeModal(){document.getElementById("modal-root").innerHTML=""}
+
+function coForJob(j){return D.companies.find(c=>c.name.toLowerCase()===j.companyName.toLowerCase())}
+function ctsForCo(name){return D.contacts.filter(c=>c.company&&c.company.toLowerCase()===name.toLowerCase())}
+function outForCt(id){return D.outreach.filter(o=>o.contactId===id)}
+function matchesSearch(j){if(!searchQ)return true;const q=searchQ.toLowerCase();return[j.title,j.companyName,j.location,j.matchReason].some(s=>(s||"").toLowerCase().includes(q))}
+
+// Contact status: not_contacted → contacted → connected → replied → meeting → referred
+const CT_STATUSES=["not_contacted","contacted","connected","replied","meeting","referred"];
+function contactStatus(c){
+  const outs=outForCt(c._id);
+  if(outs.some(o=>o.status==="replied"))return"replied";
+  if(outs.some(o=>o.status==="sent"))return"contacted";
+  if(c.relationship==="active"||c.relationship==="advocate")return"connected";
+  if(c.relationship==="warm")return"contacted";
+  return"not_contacted";
+}
+
+// Readiness
+function readiness(j){
+  const co=coForJob(j);const cts=ctsForCo(j.companyName);const hasOut=cts.some(c=>outForCt(c._id).length>0);
+  let s=0;if(j.url)s++;if(co&&co.whyInterested)s++;if(cts.length>0)s++;if(hasOut)s++;
+  return{score:s,color:s===4?"#22c55e":s===3?"#3b82f6":s===2?"#eab308":"#ef4444"}
+}
+
+// Next step logic — what should you do for this job?
+function nextStep(j){
+  if(j.status==="stale")return null;
+  const co=coForJob(j);const cts=ctsForCo(j.companyName);const hasOut=cts.some(c=>outForCt(c._id).length>0);
+  const contacted=cts.filter(c=>contactStatus(c)!=="not_contacted").length;
+  const replied=cts.filter(c=>contactStatus(c)==="replied").length;
+
+  if(!co||!co.whyInterested)return{icon:"🏢",text:"Research "+j.companyName};
+  if(cts.length===0)return{icon:"👤",text:"Find contacts at "+j.companyName};
+  if(!hasOut)return{icon:"✉️",text:"Draft outreach for contacts"};
+  if(contacted===0)return{icon:"📤",text:"Send connection requests ("+cts.length+" drafted)"};
+  if(j.status==="found")return{icon:"📋",text:"Apply to this role"};
+  if(j.status==="applied"&&daysAgo(j.appliedAt)>14)return{icon:"⏰",text:"Follow up — applied "+daysAgo(j.appliedAt)+"d ago"};
+  if(j.status==="applied"&&replied===0&&contacted>0)return{icon:"💬",text:"Check for replies from contacts"};
+  if(j.status==="interviewing")return{icon:"🎤",text:"Prep for interview"};
+  if(replied>0&&j.status!=="interviewing")return{icon:"🤝",text:"Contact replied — request referral"};
+  return null;
+}
+
+// ── Today's Actions
+function renderToday(){
+  const actions=[];
+  // Stale follow-ups: applied 7+ days ago, no response
+  D.jobs.filter(j=>j.status==="applied"&&daysAgo(j.appliedAt)>7).forEach(j=>{
+    actions.push({priority:1,icon:"⏰",text:`Follow up on <strong>${esc(j.title)}</strong> at ${esc(j.companyName)}`,sub:`Applied ${daysAgo(j.appliedAt)}d ago`,jobId:j._id});
+  });
+  // Unsent outreach
+  const unsent=D.outreach.filter(o=>o.status==="drafted"||o.status==="approved");
+  if(unsent.length>0){
+    actions.push({priority:2,icon:"📤",text:`<strong>${unsent.length}</strong> outreach message(s) ready to send`,sub:"Review in Outreach tab below"});
+  }
+  // Contacts with replies needing action
+  D.contacts.filter(c=>{const outs=outForCt(c._id);return outs.some(o=>o.status==="replied")&&c.relationship!=="advocate"}).forEach(c=>{
+    actions.push({priority:0,icon:"🔥",text:`<strong>${esc(c.name)}</strong> replied — request referral or schedule call`,sub:c.company||"",contactId:c._id});
+  });
+  // Jobs without contacts
+  D.jobs.filter(j=>j.status!=="stale"&&j.status!=="pass"&&j.status!=="rejected"&&ctsForCo(j.companyName).length===0).slice(0,3).forEach(j=>{
+    actions.push({priority:3,icon:"👤",text:`Find contacts at <strong>${esc(j.companyName)}</strong>`,sub:"No connections mapped yet"});
+  });
+  // No actions
+  actions.sort((a,b)=>a.priority-b.priority);
+
+  const el=document.getElementById("today");
+  if(actions.length===0){el.innerHTML=`<div class="today"><h2>📋 Today</h2><div class="today-empty">Nothing urgent. Keep networking!</div></div>`;return}
+  el.innerHTML=`<div class="today"><h2>📋 Today's Actions (${actions.length})</h2>${actions.slice(0,8).map(a=>`
+    <div class="today-item">
+      <div class="today-icon">${a.icon}</div>
+      <div class="today-action">${a.text}${a.sub?`<div class="sub">${esc(a.sub)}</div>`:""}</div>
+      ${a.jobId?`<button class="today-btn" onclick="toggleDetail('${a.jobId}');document.getElementById('job-${a.jobId}').scrollIntoView({behavior:'smooth'})">View</button>`:""}
+    </div>`).join("")}</div>`;
+}
+
+// ── Stats
+function renderStats(){
+  const s=D.jobs.filter(j=>j.status!=="stale"&&j.status!=="pass"&&j.status!=="rejected").length;
+  const ready=D.jobs.filter(j=>readiness(j).score===4).length;
+  const applied=D.jobs.filter(j=>j.status==="applied"||j.status==="interviewing").length;
+  const contacted=D.contacts.filter(c=>contactStatus(c)!=="not_contacted").length;
+  const replied=D.contacts.filter(c=>contactStatus(c)==="replied"||contactStatus(c)==="meeting"||contactStatus(c)==="referred").length;
+  document.getElementById("stats").innerHTML=`
+    <div class="stat ${filter==='all'?'active':''}" onclick="filter='all';render()"><div class="n" style="color:var(--blue)">${s}</div><div class="l">Active</div></div>
+    <div class="stat ${filter==='ready'?'active':''}" onclick="filter='ready';render()"><div class="n" style="color:var(--green)">${ready}</div><div class="l">Ready</div></div>
+    <div class="stat ${filter==='applied'?'active':''}" onclick="filter='applied';render()"><div class="n" style="color:var(--purple)">${applied}</div><div class="l">Applied</div></div>
+    <div class="stat" onclick="filter='all';render()"><div class="n" style="color:var(--orange)">${contacted}/${D.contacts.length}</div><div class="l">Contacted</div></div>
+    <div class="stat" onclick="filter='all';render()"><div class="n" style="color:${replied>0?'var(--green)':'var(--muted)'}">${replied}</div><div class="l">Replies</div></div>`;
+}
+
+// ── Velocity (this week)
+function renderVelocity(){
+  const weekAgo=Date.now()-7*86400000;
+  const applied7d=D.jobs.filter(j=>j.appliedAt&&j.appliedAt>weekAgo).length;
+  const sent7d=D.outreach.filter(o=>o.sentAt&&o.sentAt>weekAgo).length;
+  const replies7d=D.outreach.filter(o=>o.repliedAt&&o.repliedAt>weekAgo).length;
+  document.getElementById("velocity").innerHTML=`<div class="velocity">
+    <div class="vel-card"><div class="vel-n" style="color:${applied7d>=3?'var(--green)':'var(--yellow)'}">${applied7d}</div><div class="vel-l">Applied (7d)</div><div class="vel-target">Target: 3+</div></div>
+    <div class="vel-card"><div class="vel-n" style="color:${sent7d>=10?'var(--green)':'var(--yellow)'}">${sent7d}</div><div class="vel-l">Sent (7d)</div><div class="vel-target">Target: 10+</div></div>
+    <div class="vel-card"><div class="vel-n" style="color:${replies7d>0?'var(--green)':'var(--muted)'}">${replies7d}</div><div class="vel-l">Replies (7d)</div><div class="vel-target">Any = good</div></div>
+  </div>`;
+}
+
+// ── Filters
+function renderFilters(){
+  const counts={};D.jobs.forEach(j=>counts[j.status]=(counts[j.status]||0)+1);
+  const rc={ready:0,needs:0};D.jobs.forEach(j=>{if(readiness(j).score===4)rc.ready++;else if(readiness(j).score<3)rc.needs++});
+  const fs=["all","ready","needs","found","applied","interviewing","stale"];
+  document.getElementById("filters").innerHTML=fs.map(s=>{
+    let c=s==="all"?D.jobs.length:s==="ready"?rc.ready:s==="needs"?rc.needs:(counts[s]||0);
+    if(c===0&&s!=="all")return"";
+    const label=s==="all"?"All":s==="ready"?"✅ Ready":s==="needs"?"🔴 Incomplete":s;
+    return`<button class="fil ${filter===s?"on":""}" onclick="filter='${s}';render()">${label} (${c})</button>`;
+  }).join("");
+}
+
+// ── Content
+function renderContent(){
+  const el=document.getElementById("content");
+  searchQ=(document.getElementById("search").value||"").trim();
+  let jobs=D.jobs.filter(j=>j.status!=="pass"&&j.status!=="rejected");
+  if(filter==="ready")jobs=jobs.filter(j=>readiness(j).score===4);
+  else if(filter==="needs")jobs=jobs.filter(j=>readiness(j).score<3);
+  else if(filter!=="all")jobs=jobs.filter(j=>j.status===filter);
+  jobs=jobs.filter(matchesSearch);
+  jobs.sort((a,b)=>{const ra=readiness(a).score,rb=readiness(b).score;if(ra!==rb)return rb-ra;return(b.matchScore||0)-(a.matchScore||0)});
+
+  if(!jobs.length){el.innerHTML=`<div class="empty">No matching jobs</div>`;return}
+
+  let html=`<div class="section"><h2>Pipeline</h2><span class="count">${jobs.length} jobs</span></div>`;
+  html+=jobs.map(j=>{
+    const rd=readiness(j);const co=coForJob(j);const cts=ctsForCo(j.companyName);const ns=nextStep(j);const isOpen=expandedJobs.has(j._id);
+    return`<div class="job ${j.status==="stale"?"stale":""}" id="job-${j._id}" style="border-left:3px solid ${rd.color}">
+      <div class="job-main" onclick="toggleDetail('${j._id}')">
+        <div class="job-row1">
+          <div>
+            <div class="job-title">${esc(j.title)}</div>
+            <div class="job-company">${esc(j.companyName)}${co?` · ${esc(co.stage||"")}`:""}</div>
+          </div>
+          <div class="job-readiness" title="${rd.score}/4 complete">
+            ${[0,1,2,3].map(i=>`<div class="dot" style="background:${i<rd.score?rd.color:"#333"}"></div>`).join("")}
+          </div>
+        </div>
+        <div class="job-row2">
+          <span class="b ${j.status}">${j.status}</span>
+          ${j.remote?`<span class="b remote">remote</span>`:""}
+          ${j.location?`<span style="font-size:0.68rem;color:var(--muted)">${esc(j.location)}</span>`:""}
+          ${j.matchScore?`<span class="b score">${j.matchScore}%</span>`:""}
+          ${cts.length?`<span style="font-size:0.68rem;color:var(--muted)">${cts.filter(c=>contactStatus(c)!=="not_contacted").length}/${cts.length} contacted</span>`:""}
+          ${j.url?`<a href="${esc(j.url)}" target="_blank" class="lk" onclick="event.stopPropagation()">Apply ↗</a>`:""}
+        </div>
+        ${ns?`<div class="job-next">→ ${ns.icon} ${esc(ns.text)}</div>`:""}
+      </div>
+      <div class="job-detail ${isOpen?"open":""}" id="detail-${j._id}">
+        <div style="display:flex;gap:0.3rem;margin-bottom:0.5rem;flex-wrap:wrap">
+          <select class="ss" onchange="updateStatus('${j._id}',this.value)">${["found","reviewed","applying","applied","interviewing","offer","rejected","stale","pass"].map(s=>`<option value="${s}" ${j.status===s?"selected":""}>${s}</option>`).join("")}</select>
+          ${j.url?`<button class="btn sm danger" onclick="reportDead('${j._id}')">Dead link</button>`:""}
+          <button class="btn sm" onclick="openEditJob('${j._id}')">Edit</button>
+        </div>
+        ${co?`<div class="detail-section"><h4>Company Intel</h4><div class="co-brief">
+          <div class="co-name">${esc(co.name)} ${co.website?`<a href="${esc(co.website)}" target="_blank" class="lk">↗</a>`:""}</div>
+          <div class="co-meta">${[co.stage,co.industry,co.size,co.location].filter(Boolean).map(esc).join(" · ")}</div>
+          ${co.whyInterested?`<div class="co-why">${esc(co.whyInterested)}</div>`:""}
+          ${co.challenges?`<div class="co-why"><strong>Challenges:</strong> ${esc(co.challenges)}</div>`:""}
+          ${co.fundingHistory?`<div class="co-why"><strong>Funding:</strong> ${esc(co.fundingHistory)}</div>`:""}
+        </div></div>`:`<div class="detail-section"><h4>Company</h4><div class="detail-text">No intel. <button class="btn sm" onclick="openAddCompanyFor('${esc(j.companyName)}')">Add Intel</button></div></div>`}
+        <div class="detail-section"><h4>Contacts (${cts.length})</h4>
+          ${cts.length?cts.map(c=>{
+            const cst=contactStatus(c);const outs=outForCt(c._id);
+            return`<div class="ct">
+              <div class="ct-top">
+                <div><span class="ct-name">${esc(c.name)}</span> <span class="ct-title">${esc(c.title||"")}</span></div>
+                <div class="ct-actions">
+                  <span class="b ${cst}">${cst.replace("_"," ")}</span>
+                  <select class="ss" onchange="updateContactStatus('${c._id}',this.value)">${CT_STATUSES.map(s=>`<option value="${s}" ${cst===s?"selected":""}>${s.replace("_"," ")}</option>`).join("")}</select>
+                  ${c.linkedinUrl?`<a href="${esc(c.linkedinUrl)}" target="_blank" class="lk">LinkedIn</a>`:""}
+                </div>
+              </div>
+              ${c.notes?`<div style="font-size:0.7rem;color:#525252;margin-top:0.15rem">${esc(c.notes)}</div>`:""}
+              ${outs.map(o=>`<div class="outreach">
+                <div class="outreach-head">
+                  <div><span class="b ${o.status}">${o.status}</span> <span style="font-size:0.63rem;color:var(--muted)">${esc(o.channel)}</span>${o.sentAt?` <span style="font-size:0.63rem;color:#525252">${ago(o.sentAt)}</span>`:""}</div>
+                  <select class="ss" onchange="updateOutreach('${o._id}',this.value)">${["drafted","approved","sent","replied","no_reply"].map(s=>`<option value="${s}" ${o.status===s?"selected":""}>${s}</option>`).join("")}</select>
+                </div>
+                <div class="outreach-msg">${esc(o.message)}</div>
+              </div>`).join("")}
+            </div>`;
+          }).join(""):`<div class="detail-text">No contacts. <button class="btn sm" onclick="openAddContactFor('${esc(j.companyName)}')">Add Contact</button></div>`}
+        </div>
+        ${j.notes?`<div class="detail-section"><h4>Notes</h4><div class="detail-text">${esc(j.notes)}</div></div>`:""}
+      </div>
+    </div>`;
+  }).join("");
+
+  // Activity
+  if(D.activity.length){
+    html+=`<div class="section"><h2>Activity</h2><button class="btn sm" onclick="document.getElementById('act').style.display=document.getElementById('act').style.display==='none'?'block':'none'">Toggle</button></div>
+    <div id="act" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:0.5rem">
+      ${D.activity.slice(0,15).map(a=>`<div class="act-item"><div style="width:5px;height:5px;border-radius:50%;background:var(--blue);margin-top:6px;flex-shrink:0"></div><div>${esc(a.details)}</div><div class="act-time">${ago(a.createdAt)}</div></div>`).join("")}
+    </div>`;
+  }
+  el.innerHTML=html;
+}
+
+function render(){renderStats();renderVelocity();renderFilters();renderToday();renderContent()}
+
+// ── Actions
+function toggleDetail(id){if(expandedJobs.has(id))expandedJobs.delete(id);else expandedJobs.add(id);renderContent()}
+async function updateStatus(id,status){const x={};if(status==="applied")x.appliedAt=Date.now();if(status==="interviewing")x.responseAt=Date.now();await cm("jobSearch:updateJobStatus",{id,status,...x});await refresh()}
+async function reportDead(id){await cm("jobSearch:updateJobStatus",{id,status:"stale",notes:"Dead link"});toast("Marked stale");await refresh()}
+async function updateOutreach(id,status){const x={};if(status==="sent")x.sentAt=Date.now();if(status==="replied")x.repliedAt=Date.now();await cm("jobSearch:updateOutreachStatus",{id,status,...x});await refresh()}
+async function updateContactStatus(id,status){
+  const relMap={not_contacted:"cold",contacted:"warm",connected:"active",replied:"active",meeting:"advocate",referred:"advocate"};
+  await cm("jobSearch:upsertContact",{id,name:D.contacts.find(c=>c._id===id)?.name||"",relationship:relMap[status]||"cold"});
+  // If marking as contacted/connected, also update outreach
+  if(status==="contacted"){const outs=outForCt(id).filter(o=>o.status==="drafted"||o.status==="approved");for(const o of outs){await cm("jobSearch:updateOutreachStatus",{id:o._id,status:"sent",sentAt:Date.now()})}}
+  if(status==="replied"){const outs=outForCt(id).filter(o=>o.status==="sent");for(const o of outs){await cm("jobSearch:updateOutreachStatus",{id:o._id,status:"replied",repliedAt:Date.now()})}}
+  toast(status.replace("_"," "));await refresh()
+}
+
+// ── Modals (same as before, compact)
+function openAddJob(){showModal(`<h2>Add Job</h2><label>Title *<input id="f-t" placeholder="VP of Engineering"></label><label>Company *<input id="f-c" placeholder="Acme"></label><label>URL<input id="f-u" placeholder="https://..."></label><label>Location<input id="f-l" placeholder="Remote / NYC"></label><label>Comp<input id="f-k" placeholder="$250K-$300K"></label><label>Remote<select id="f-r"><option value="">?</option><option value="true">Yes</option><option value="false">No</option></select></label><label>Score<input id="f-s" type="number" placeholder="85"></label><label>Match Reason<input id="f-m" placeholder="Why it fits..."></label><div class="btn-row"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="saveJob()">Save</button></div>`)}
+async function saveJob(){const t=document.getElementById("f-t").value.trim(),c=document.getElementById("f-c").value.trim();if(!t||!c)return alert("Title & Company required");const r=document.getElementById("f-r").value;await cm("jobSearch:upsertJob",{title:t,companyName:c,url:document.getElementById("f-u").value.trim()||undefined,location:document.getElementById("f-l").value.trim()||undefined,compensationRange:document.getElementById("f-k").value.trim()||undefined,remote:r==="true"?true:r==="false"?false:undefined,matchScore:parseInt(document.getElementById("f-s").value)||undefined,matchReason:document.getElementById("f-m").value.trim()||undefined,status:"found"});closeModal();toast("Added");await refresh()}
+function openEditJob(id){const j=D.jobs.find(x=>x._id===id);if(!j)return;showModal(`<h2>Edit Job</h2><label>Title<input id="e-t" value="${esc(j.title)}"></label><label>Company<input id="e-c" value="${esc(j.companyName)}"></label><label>URL<input id="e-u" value="${esc(j.url||"")}"></label><label>Location<input id="e-l" value="${esc(j.location||"")}"></label><label>Notes<textarea id="e-n">${esc(j.notes||"")}</textarea></label><div class="btn-row"><button class="btn danger" onclick="deleteJob('${id}')">Delete</button><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="updateJob('${id}')">Save</button></div>`)}
+async function updateJob(id){await cm("jobSearch:upsertJob",{id,title:document.getElementById("e-t").value.trim(),companyName:document.getElementById("e-c").value.trim(),url:document.getElementById("e-u").value.trim()||undefined,location:document.getElementById("e-l").value.trim()||undefined,notes:document.getElementById("e-n").value.trim()||undefined});closeModal();toast("Updated");await refresh()}
+async function deleteJob(id){if(!confirm("Delete?"))return;await cm("jobSearch:removeJob",{id});closeModal();toast("Deleted");await refresh()}
+function openAddCompany(){openAddCompanyFor("")}
+function openAddCompanyFor(n){showModal(`<h2>Add Company</h2><label>Name *<input id="c-n" value="${esc(n)}"></label><label>Website<input id="c-w"></label><label>Stage<select id="c-s"><option value="">?</option><option>Seed</option><option>Series A</option><option>Series B</option><option>Series C</option><option>Growth</option><option>Public</option></select></label><label>Industry<input id="c-i" placeholder="Health Tech"></label><label>Location<input id="c-l"></label><label>Why Interested<textarea id="c-y"></textarea></label><div class="btn-row"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="saveCo()">Save</button></div>`)}
+async function saveCo(){const n=document.getElementById("c-n").value.trim();if(!n)return alert("Name required");await cm("jobSearch:upsertCompany",{name:n,website:document.getElementById("c-w").value.trim()||undefined,stage:document.getElementById("c-s").value||undefined,industry:document.getElementById("c-i").value.trim()||undefined,location:document.getElementById("c-l").value.trim()||undefined,whyInterested:document.getElementById("c-y").value.trim()||undefined});closeModal();toast("Added");await refresh()}
+function openAddContact(){openAddContactFor("")}
+function openAddContactFor(co){showModal(`<h2>Add Contact</h2><label>Name *<input id="t-n"></label><label>Title<input id="t-t" placeholder="VP of Eng"></label><label>Company<input id="t-c" value="${esc(co)}"></label><label>LinkedIn<input id="t-l" placeholder="https://linkedin.com/in/..."></label><label>Notes<textarea id="t-o"></textarea></label><div class="btn-row"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="saveCt()">Save</button></div>`)}
+async function saveCt(){const n=document.getElementById("t-n").value.trim();if(!n)return alert("Name required");await cm("jobSearch:upsertContact",{name:n,title:document.getElementById("t-t").value.trim()||undefined,company:document.getElementById("t-c").value.trim()||undefined,linkedinUrl:document.getElementById("t-l").value.trim()||undefined,notes:document.getElementById("t-o").value.trim()||undefined,relationship:"cold"});closeModal();toast("Added");await refresh()}
+
+async function refresh(){
+  try{const[j,co,ct,o,a]=await Promise.all([cq("jobSearch:listJobs"),cq("jobSearch:listCompanies"),cq("jobSearch:listContacts"),cq("jobSearch:listOutreach"),cq("jobSearch:listActivity",{limit:20})]);
+  D={jobs:j||[],companies:co||[],contacts:ct||[],outreach:o||[],activity:a||[]};render();
+  const stale=D.jobs.filter(j=>j.status==="stale").length;let ah="";
+  if(stale)ah+=`<div class="alert">${stale} stale/dead link(s) in pipeline</div>`;
+  document.getElementById("alerts").innerHTML=ah;
+  }catch(e){document.getElementById("alerts").innerHTML=`<div class="alert" style="background:#450a0a;border-color:#7f1d1d;color:#fca5a5">Error: ${e.message}</div>`}
+}
+refresh();setInterval(refresh,60000);
+</script>
+</body>
+</html>

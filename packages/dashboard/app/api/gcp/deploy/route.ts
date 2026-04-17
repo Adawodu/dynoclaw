@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@convex/_generated/api";
-import { getGcpToken } from "@/lib/gcp-auth";
+import { auth } from "@clerk/nextjs/server";
+import { getGcpToken, getManagedGcpToken } from "@/lib/gcp-auth";
 import {
   enableApi,
-  getProjectNumber,
   createServiceAccount,
-  grantRole,
   createSecret,
   createFirewallRule,
   ensureCloudNat,
@@ -15,23 +14,13 @@ import {
 import { maskApiKey } from "@/lib/formatters";
 import { generateWebStartupScript } from "@/lib/startup-script";
 
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
-  const authResult = await getGcpToken();
-  if (!authResult) {
-    return NextResponse.json(
-      {
-        error:
-          "Google account not connected. Sign in with Google or connect it in your profile to enable GCP deployment.",
-      },
-      { status: 400 }
-    );
-  }
-  const { gcpToken, convexToken } = authResult;
 
   const body = await req.json();
   const {
-    gcpProjectId,
     gcpZone,
     vmName,
     machineType,
@@ -42,66 +31,166 @@ export async function POST(req: NextRequest) {
     apiKeys,
   } = body;
 
-  try {
-    // 1. Enable APIs
-    await enableApi(gcpToken, gcpProjectId, "compute.googleapis.com");
-    await enableApi(gcpToken, gcpProjectId, "secretmanager.googleapis.com");
+  const isManaged = body.gcpProjectId === "__managed__" || body.hostingType === "managed";
+  const gcpProjectId = isManaged ? "dynoclaw-managed" : body.gcpProjectId;
 
-    // 2. Service account — grant secret access to both custom SA and default compute SA
-    const { email: saEmail } = await createServiceAccount(
-      gcpToken,
-      gcpProjectId,
-      "openclaw-sa",
-      "OpenClaw SA"
-    );
-    await grantRole(
-      gcpToken,
-      gcpProjectId,
-      saEmail,
-      "roles/secretmanager.secretAccessor"
-    );
-    // Also grant to default compute SA in case GCP can't assign the custom one
-    const projectNumber = await getProjectNumber(gcpToken, gcpProjectId);
-    if (projectNumber) {
-      const defaultSa = `${projectNumber}-compute@developer.gserviceaccount.com`;
-      await grantRole(
-        gcpToken,
-        gcpProjectId,
-        defaultSa,
-        "roles/secretmanager.secretAccessor"
+  let gcpToken: string;
+  let convexToken: string | null = null;
+
+  if (isManaged) {
+    // Managed hosting — use DynoClaw's service account
+    const managedToken = await getManagedGcpToken();
+    if (!managedToken) {
+      return NextResponse.json(
+        { error: "Managed hosting is temporarily unavailable. Please try again later." },
+        { status: 500 }
       );
     }
+    gcpToken = managedToken;
 
-    // 3. Store secrets
-    for (const [secretName, value] of Object.entries(apiKeys)) {
-      if (value) {
-        await createSecret(gcpToken, gcpProjectId, secretName, value as string);
-      }
+    // Get Convex token from Clerk (no Google OAuth needed)
+    const { getToken } = await auth();
+    try {
+      convexToken = await getToken({ template: "convex" });
+    } catch {
+      // Convex JWT template may not exist
+    }
+  } else {
+    // Self-hosted — use user's Google OAuth token
+    const authResult = await getGcpToken();
+    if (!authResult) {
+      return NextResponse.json(
+        {
+          error:
+            "Google account not connected. Sign in with Google or connect it in your profile to enable GCP deployment.",
+        },
+        { status: 400 }
+      );
+    }
+    gcpToken = authResult.gcpToken;
+    convexToken = authResult.convexToken;
+  }
+
+  // For managed deploys, make VM name unique per user
+  const finalVmName = isManaged
+    ? `${vmName}-${Date.now().toString(36)}`
+    : vmName;
+
+  try {
+    // 1. Enable APIs (skip for managed — pre-enabled)
+    if (!isManaged) {
+      await enableApi(gcpToken, gcpProjectId, "compute.googleapis.com");
+      await enableApi(gcpToken, gcpProjectId, "secretmanager.googleapis.com");
     }
 
-    // 4. Firewall rules
-    await createFirewallRule(gcpToken, gcpProjectId, {
-      name: "allow-iap-ssh",
-      direction: "INGRESS",
-      priority: 1000,
-      allowed: [{ IPProtocol: "tcp", ports: ["22"] }],
-      sourceRanges: ["35.235.240.0/20"],
-      targetTags: ["openclaw"],
-    });
-    await createFirewallRule(gcpToken, gcpProjectId, {
-      name: "deny-all-ingress",
-      direction: "INGRESS",
-      priority: 2000,
-      denied: [{ IPProtocol: "all" }],
-      sourceRanges: ["0.0.0.0/0"],
-      targetTags: ["openclaw"],
-    });
+    // 2-5: Infrastructure setup.
+    // For managed: SA is pre-created; firewall + NAT need to be ensured idempotently
+    //   because they can drift (someone cleans up GCP, region migrations, etc.)
+    // For self-hosted: create everything from scratch.
+    let saEmail: string;
+    if (isManaged) {
+      saEmail = `openclaw-sa@${gcpProjectId}.iam.gserviceaccount.com`;
 
-    // 5. Cloud NAT (allows VM without external IP to reach internet)
-    const gcpRegion = gcpZone.replace(/-[a-z]$/, "");
-    await ensureCloudNat(gcpToken, gcpProjectId, gcpRegion);
+      // Store secrets namespaced per VM (so multiple customers don't overwrite each other)
+      // Secret name format: <vmname>--<secretname> e.g. "openclaw-vm-abc123--google-ai-api-key"
+      // Labels make secrets identifiable in Secret Manager console
+      const secretLabels = {
+        "dynoclaw-vm": finalVmName.replace(/[^a-z0-9_-]/g, "_"),
+        "managed-by": "dynoclaw",
+        "created": new Date().toISOString().split("T")[0].replace(/-/g, ""),
+      };
+      for (const [secretName, value] of Object.entries(apiKeys)) {
+        if (value) {
+          const namespacedSecret = `${finalVmName}--${secretName}`;
+          await createSecret(gcpToken, gcpProjectId, namespacedSecret, value as string, secretLabels);
+        }
+      }
 
-    // 6. Generate startup script with plugin download
+      // Ensure firewall rules exist (idempotent — createFirewallRule ignores 409 conflict)
+      await createFirewallRule(gcpToken, gcpProjectId, {
+        name: "allow-iap-ssh",
+        direction: "INGRESS",
+        priority: 1000,
+        allowed: [{ IPProtocol: "tcp", ports: ["22"] }],
+        sourceRanges: ["35.235.240.0/20"],
+        targetTags: ["openclaw"],
+      });
+      await createFirewallRule(gcpToken, gcpProjectId, {
+        name: "allow-iap-dashboard",
+        direction: "INGRESS",
+        priority: 1001,
+        allowed: [{ IPProtocol: "tcp", ports: ["18789"] }],
+        sourceRanges: ["35.235.240.0/20"],
+        targetTags: ["openclaw"],
+      });
+      await createFirewallRule(gcpToken, gcpProjectId, {
+        name: "deny-all-ingress",
+        direction: "INGRESS",
+        priority: 2000,
+        denied: [{ IPProtocol: "all" }],
+        sourceRanges: ["0.0.0.0/0"],
+        targetTags: ["openclaw"],
+      });
+
+      // Ensure Cloud NAT exists for outbound internet (no external IP on VMs)
+      // CRITICAL: without this, apt install, secret fetches, and model API calls all fail
+      const gcpRegion = gcpZone.replace(/-[a-z]$/, "");
+      await ensureCloudNat(gcpToken, gcpProjectId, gcpRegion);
+    } else {
+      // 2. Create service account
+      try {
+        const sa = await createServiceAccount(
+          gcpToken,
+          gcpProjectId,
+          "openclaw-sa",
+          "OpenClaw SA"
+        );
+        saEmail = sa.email;
+      } catch (saErr) {
+        saEmail = `openclaw-sa@${gcpProjectId}.iam.gserviceaccount.com`;
+        console.warn("SA creation failed (may already exist):", saErr);
+      }
+
+      // 3. Store secrets
+      for (const [secretName, value] of Object.entries(apiKeys)) {
+        if (value) {
+          await createSecret(gcpToken, gcpProjectId, secretName, value as string);
+        }
+      }
+
+      // 4. Firewall rules
+      await createFirewallRule(gcpToken, gcpProjectId, {
+        name: "allow-iap-ssh",
+        direction: "INGRESS",
+        priority: 1000,
+        allowed: [{ IPProtocol: "tcp", ports: ["22"] }],
+        sourceRanges: ["35.235.240.0/20"],
+        targetTags: ["openclaw"],
+      });
+      // IAP tunnel to OpenClaw dashboard (port 18789) for DynoClaw proxy access
+      await createFirewallRule(gcpToken, gcpProjectId, {
+        name: "allow-iap-dashboard",
+        direction: "INGRESS",
+        priority: 1001,
+        allowed: [{ IPProtocol: "tcp", ports: ["18789"] }],
+        sourceRanges: ["35.235.240.0/20"],
+        targetTags: ["openclaw"],
+      });
+      await createFirewallRule(gcpToken, gcpProjectId, {
+        name: "deny-all-ingress",
+        direction: "INGRESS",
+        priority: 2000,
+        denied: [{ IPProtocol: "all" }],
+        sourceRanges: ["0.0.0.0/0"],
+        targetTags: ["openclaw"],
+      });
+
+      // 5. Cloud NAT
+      const gcpRegion = gcpZone.replace(/-[a-z]$/, "");
+      await ensureCloudNat(gcpToken, gcpProjectId, gcpRegion);
+    }
+
+    // 6. Generate startup script
     const enabledPlugins = Object.entries(plugins)
       .filter(([, v]) => v)
       .map(([k]) => k);
@@ -120,7 +209,7 @@ export async function POST(req: NextRequest) {
 
     // 7. Create VM
     const vmResult = await createInstance(gcpToken, gcpProjectId, gcpZone, {
-      name: vmName,
+      name: finalVmName,
       machineType,
       serviceAccountEmail: saEmail,
       startupScript,
@@ -142,7 +231,7 @@ export async function POST(req: NextRequest) {
         const deploymentId = await convex.mutation(api.deployments.create, {
           gcpProjectId,
           gcpZone,
-          vmName,
+          vmName: finalVmName,
           machineType,
           branding: {
             botName: branding.botName,
@@ -178,7 +267,7 @@ export async function POST(req: NextRequest) {
         for (const [skillId, enabled] of Object.entries(skills)) {
           await convex.mutation(api.skillConfigs.set, {
             deploymentId,
-              skillId,
+            skillId,
             enabled: enabled as boolean,
           });
         }
@@ -198,8 +287,7 @@ export async function POST(req: NextRequest) {
   } catch (error: unknown) {
     console.error("Deploy error:", error);
     const message = error instanceof Error ? error.message : String(error);
+    console.error("Deploy error:", error);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
-
-

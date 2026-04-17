@@ -2,20 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@convex/_generated/api";
 import { Id } from "@convex/_generated/dataModel";
-import { getGcpToken } from "@/lib/gcp-auth";
+import { getGcpTokenForProject } from "@/lib/gcp-auth";
 import { startInstance, stopInstance, resetInstance, setInstanceMetadata } from "@/lib/gcp-rest";
 import { generateWebStartupScript } from "@/lib/startup-script";
 
 export async function POST(req: NextRequest) {
   const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
-  const authResult = await getGcpToken();
-  if (!authResult) {
-    return NextResponse.json(
-      { error: "Google account not connected." },
-      { status: 400 }
-    );
-  }
-  const { gcpToken, convexToken } = authResult;
 
   const { deploymentId, action } = await req.json();
   if (!deploymentId || !action) {
@@ -25,10 +17,15 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Fetch deployment via authenticated query to verify ownership
+  // Get Convex token to fetch deployment (try managed first, then user OAuth)
+  const managedAuth = await getGcpTokenForProject("dynoclaw-managed");
+  const userAuth = await getGcpTokenForProject("");
+  const convexToken = managedAuth?.convexToken ?? userAuth?.convexToken ?? null;
+
   if (convexToken) {
     convex.setAuth(convexToken);
   }
+
   const deployment = await convex.query(api.deployments.get, {
     id: deploymentId as Id<"deployments">,
   });
@@ -39,6 +36,16 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Get the right GCP token for this deployment's project
+  const gcpAuth = await getGcpTokenForProject(deployment.gcpProjectId);
+  if (!gcpAuth) {
+    return NextResponse.json(
+      { error: "Cannot access GCP project." },
+      { status: 400 }
+    );
+  }
+
+  const { gcpToken } = gcpAuth;
   const { gcpProjectId, gcpZone, vmName } = deployment;
 
   try {
@@ -50,7 +57,6 @@ export async function POST(req: NextRequest) {
         await stopInstance(gcpToken, gcpProjectId, gcpZone, vmName);
         break;
       case "reset": {
-        // Regenerate startup script with latest config before restarting
         const pluginConfigs = await convex.query(api.pluginConfigs.listByDeployment, {
           deploymentId: deploymentId as Id<"deployments">,
         });

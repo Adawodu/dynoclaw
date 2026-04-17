@@ -393,6 +393,42 @@ export const PLUGIN_REGISTRY: PluginMeta[] = [
     requiredKeys: [],
     optionalKeys: [],
   },
+  {
+    id: "job-search",
+    name: "Job Search Pipeline",
+    description: "Track job opportunities, research companies, map contacts, and draft outreach",
+    requiredKeys: [],
+    optionalKeys: [
+      {
+        key: "convexUrl",
+        secretName: "convex-url",
+        description: "Convex deployment URL (for pipeline data storage)",
+        signupUrl: "https://convex.dev",
+      },
+    ],
+  },
+  {
+    id: "clarify-ai",
+    name: "Clarify.ai CRM",
+    description:
+      "Search contacts, manage deals, find leads, and pull meeting data from Clarify.ai. " +
+      "Connect your email once and Clarify builds your relationship graph automatically.",
+    requiredKeys: [
+      {
+        key: "clarifyApiKey",
+        secretName: "clarify-api-key",
+        description: "Clarify.ai API key",
+        signupUrl: "https://clarify.ai",
+      },
+      {
+        key: "clarifyWorkspaceSlug",
+        secretName: "clarify-workspace-slug",
+        description: "Clarify workspace slug (from your dashboard URL)",
+        signupUrl: "https://clarify.ai",
+      },
+    ],
+    optionalKeys: [],
+  },
 ];
 
 export function getPluginById(id: string): PluginMeta | undefined {

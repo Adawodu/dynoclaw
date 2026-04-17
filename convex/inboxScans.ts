@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { requireUser, optionalUser, resolveUser, resolveUserOrNull, resolveUserWithLegacy } from "./lib/auth";
 
 export const create = mutation({
   args: {
@@ -34,13 +35,16 @@ export const create = mutation({
 });
 
 export const latest = query({
-  args: {},
-  handler: async (ctx) => {
-    const scans = await ctx.db
-      .query("inboxScans")
-      .withIndex("by_scannedAt")
-      .order("desc")
-      .take(1);
+  args: { userId: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const userId = await resolveUserWithLegacy(ctx, args.userId);
+    let scans;
+    if (userId === "__legacy__") {
+      scans = await ctx.db.query("inboxScans").withIndex("by_scannedAt").order("desc").take(10);
+      scans = scans.filter((s) => !s.userId);
+    } else {
+      scans = await ctx.db.query("inboxScans").withIndex("by_userId_scannedAt", (q) => q.eq("userId", userId)).order("desc").take(1);
+    }
     return scans[0] ?? null;
   },
 });
@@ -50,10 +54,10 @@ export const markSafe = mutation({
     senderDomain: v.string(),
   },
   handler: async (ctx, args) => {
-    // Get the latest scan
+    const userId = await requireUser(ctx);
     const scans = await ctx.db
       .query("inboxScans")
-      .withIndex("by_scannedAt")
+      .withIndex("by_userId_scannedAt", (q) => q.eq("userId", userId))
       .order("desc")
       .take(1);
     const scan = scans[0];
@@ -63,7 +67,6 @@ export const markSafe = mutation({
       s.domain === args.senderDomain ? { ...s, category: "Essential" } : s,
     );
 
-    // Recalculate category breakdown
     const categoryBreakdown: Record<string, number> = {};
     for (const s of updatedSenders) {
       categoryBreakdown[s.category] = (categoryBreakdown[s.category] || 0) + 1;
@@ -81,11 +84,17 @@ export const markSafe = mutation({
 export const list = query({
   args: {
     limit: v.optional(v.number()),
+    userId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const userId = await resolveUserWithLegacy(ctx, args.userId);
+    if (userId === "__legacy__") {
+      const all = await ctx.db.query("inboxScans").withIndex("by_scannedAt").order("desc").take(args.limit ?? 10);
+      return all.filter((s) => !s.userId);
+    }
     return ctx.db
       .query("inboxScans")
-      .withIndex("by_scannedAt")
+      .withIndex("by_userId_scannedAt", (q) => q.eq("userId", userId))
       .order("desc")
       .take(args.limit ?? 10);
   },

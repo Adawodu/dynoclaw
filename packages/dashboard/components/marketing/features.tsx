@@ -1,36 +1,42 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { Cloud, Puzzle, Zap, Shield, Mail } from "lucide-react";
+import { Cloud, Server, Puzzle, Zap, Shield, Mail } from "lucide-react";
 
 const features = [
   {
-    icon: Cloud,
-    title: "GCP Deploy",
+    icon: Server,
+    title: "Managed Hosting",
     description:
-      "One-click deployment to your own GCP project. Your data stays in your cloud — always.",
+      "We handle the infrastructure. Your AI teammate runs on an isolated VM — deployed, monitored, and maintained by DynoClaw.",
+  },
+  {
+    icon: Cloud,
+    title: "Self-Hosted Option",
+    description:
+      "Deploy to your own GCP project for full data ownership. Respects org policies including Domain Restricted Sharing.",
   },
   {
     icon: Puzzle,
     title: "Plugin Ecosystem",
     description:
-      "Postiz, Beehiiv, Twitter research, Brave Search, and more. Extend your teammate with community plugins.",
+      "17+ plugins — Postiz, Beehiiv, Gmail, GitHub, HubSpot, Zoho, image/video generation, and more. Extend with custom plugins.",
   },
   {
     icon: Zap,
     title: "Skill Scheduling",
     description:
-      "Cron-powered skills that run automatically — content generation, research, reporting on your schedule.",
+      "Cron-powered skills that run automatically — content generation, research, reporting, privacy enforcement on your schedule.",
   },
   {
     icon: Shield,
     title: "Enterprise Security",
     description:
-      "API keys stored in GCP Secret Manager, Clerk auth, draft-only publishing, and full audit logs.",
+      "Isolated VM per customer. API keys in GCP Secret Manager (AES-256). Dedicated service accounts with minimal permissions. Clerk auth.",
   },
   {
     icon: Mail,
-    title: "Email Assistant",
+    title: "Email & Communication",
     description:
-      "Draft emails with attachments via Telegram. DynoSist creates Gmail drafts — you review and send.",
+      "Gmail drafts via DynoSist, dedicated agent inbox via AgentMail, privacy enforcement via DynoClux. All channels in one bot.",
   },
 ];
 
@@ -43,8 +49,8 @@ export function Features() {
           <span className="gradient-brand-text">AI-powered workflow</span>
         </h2>
         <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-          DynoClaw combines deployment, orchestration, and enterprise controls
-          into a single platform.
+          Managed or self-hosted. DynoClaw combines deployment, orchestration,
+          and enterprise controls into a single platform.
         </p>
       </div>
 

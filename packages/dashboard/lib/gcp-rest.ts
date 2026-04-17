@@ -131,9 +131,10 @@ export async function createSecret(
   token: string,
   project: string,
   secretId: string,
-  value: string
+  value: string,
+  labels?: Record<string, string>,
 ): Promise<void> {
-  // Create secret (ignore 409 = already exists)
+  // Create secret with optional labels (ignore 409 = already exists)
   const createRes = await gcpFetch(
     `${SM_BASE}/projects/${project}/secrets?secretId=${secretId}`,
     token,
@@ -141,6 +142,7 @@ export async function createSecret(
       method: "POST",
       body: JSON.stringify({
         replication: { automatic: {} },
+        ...(labels && { labels }),
       }),
     }
   );
@@ -158,6 +160,42 @@ export async function createSecret(
       body: JSON.stringify({ payload: { data: payload } }),
     }
   );
+}
+
+/** Delete a secret by ID. Ignores 404 (already deleted). */
+export async function deleteSecret(
+  token: string,
+  project: string,
+  secretId: string,
+): Promise<void> {
+  const res = await gcpFetch(
+    `${SM_BASE}/projects/${project}/secrets/${secretId}`,
+    token,
+    { method: "DELETE" },
+  );
+  if (!res.ok && res.status !== 404) {
+    throw new Error(await gcpError(res, `Failed to delete secret ${secretId}`));
+  }
+}
+
+/** List secrets matching a filter (e.g., by label). Returns secret IDs. */
+export async function listSecrets(
+  token: string,
+  project: string,
+  filter?: string,
+): Promise<string[]> {
+  const qs = filter ? `?filter=${encodeURIComponent(filter)}` : "";
+  const res = await gcpFetch(
+    `${SM_BASE}/projects/${project}/secrets${qs}`,
+    token,
+  );
+  if (!res.ok) return [];
+  const data = await res.json();
+  return (data.secrets || []).map((s: any) => {
+    // name format: projects/<num>/secrets/<id>
+    const parts = s.name?.split("/") || [];
+    return parts[parts.length - 1];
+  });
 }
 
 // ── Cloud Router + NAT ─────────────────────────────────────────

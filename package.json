@@ -4,7 +4,8 @@
   "private": true,
   "workspaces": [
     "packages/*",
-    "plugins/*"
+    "plugins/*",
+    "services/*"
   ],
   "scripts": {
     "convex:dev": "npx convex dev",
@@ -14,5 +15,8 @@
   },
   "dependencies": {
     "convex": "^1.21.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2"
   }
 }

@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getGcpToken } from "@/lib/gcp-auth";
+import { getGcpTokenForProject } from "@/lib/gcp-auth";
 import { createSecret } from "@/lib/gcp-rest";
 
 export async function POST(req: NextRequest) {
-  const authResult = await getGcpToken();
+  const { project, secretName, value } = await req.json();
+
+  const authResult = await getGcpTokenForProject(project ?? "");
   if (!authResult) {
     return NextResponse.json(
       { error: "Google account not connected." },
@@ -11,8 +13,6 @@ export async function POST(req: NextRequest) {
     );
   }
   const { gcpToken } = authResult;
-
-  const { project, secretName, value } = await req.json();
 
   try {
     await createSecret(gcpToken, project, secretName, value);

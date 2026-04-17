@@ -30,8 +30,8 @@ export function Hero() {
         </h1>
 
         <p className="mx-auto max-w-2xl text-lg text-muted-foreground sm:text-xl">
-          DynoClaw deploys an always-on AI agent to your GCP project — equipped
-          with plugins, scheduled skills, and full enterprise controls.
+          DynoClaw deploys an always-on AI agent — managed by us or in your
+          own cloud — with plugins, scheduled skills, and enterprise controls.
         </p>
 
         <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">

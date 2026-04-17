@@ -1,7 +1,7 @@
 export default {
   providers: [
     {
-      domain: "https://dynamic-primate-49.clerk.accounts.dev",
+      domain: "https://clerk.dynoclaw.com",
       applicationID: "convex",
     },
   ],

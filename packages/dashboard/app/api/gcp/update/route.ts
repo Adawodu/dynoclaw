@@ -2,20 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@convex/_generated/api";
 import { Id } from "@convex/_generated/dataModel";
-import { getGcpToken } from "@/lib/gcp-auth";
+import { getGcpTokenForProject } from "@/lib/gcp-auth";
 import { setInstanceMetadata, resetInstance } from "@/lib/gcp-rest";
 import { generateWebStartupScript } from "@/lib/startup-script";
 
 export async function POST(req: NextRequest) {
   const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
-  const authResult = await getGcpToken();
-  if (!authResult) {
-    return NextResponse.json(
-      { error: "Google account not connected." },
-      { status: 400 }
-    );
-  }
-  const { gcpToken, convexToken } = authResult;
 
   const { deploymentId } = await req.json();
   if (!deploymentId) {
@@ -24,6 +16,11 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
+
+  // Get Convex token to fetch deployment
+  const managedAuth = await getGcpTokenForProject("dynoclaw-managed");
+  const userAuth = await getGcpTokenForProject("");
+  const convexToken = managedAuth?.convexToken ?? userAuth?.convexToken ?? null;
 
   if (convexToken) {
     convex.setAuth(convexToken);
@@ -37,6 +34,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       { error: "Deployment not found" },
       { status: 404 }
+    );
+  }
+
+  // Get the right GCP token for this deployment's project
+  const gcpAuth = await getGcpTokenForProject(deployment.gcpProjectId);
+  if (!gcpAuth) {
+    return NextResponse.json(
+      { error: "Cannot access GCP project." },
+      { status: 400 }
     );
   }
 
@@ -56,28 +62,25 @@ export async function POST(req: NextRequest) {
     .map((s: { skillId: string }) => s.skillId);
 
   try {
-    // Regenerate startup script with current config
     const startupScript = generateWebStartupScript({
       gcpProjectId: deployment.gcpProjectId,
-      apiKeys: {}, // Raw values aren't stored — fetch_secret() handles retrieval on boot
+      apiKeys: {},
       branding: deployment.branding,
       models: deployment.models,
       enabledPlugins,
       enabledSkills,
     });
 
-    // Update VM metadata with new startup script
     await setInstanceMetadata(
-      gcpToken,
+      gcpAuth.gcpToken,
       deployment.gcpProjectId,
       deployment.gcpZone,
       deployment.vmName,
       [{ key: "startup-script", value: startupScript }]
     );
 
-    // Reboot VM so new startup script runs
     await resetInstance(
-      gcpToken,
+      gcpAuth.gcpToken,
       deployment.gcpProjectId,
       deployment.gcpZone,
       deployment.vmName

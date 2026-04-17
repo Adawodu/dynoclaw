@@ -214,6 +214,7 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_clerkId", ["clerkId"])
+    .index("by_email", ["email"])
     .index("by_role", ["role"]),
 
   // ── Privacy / DynoClux tables ─────────────────────────────────────
@@ -437,4 +438,122 @@ export default defineSchema({
   })
     .index("by_webinarId", ["webinarId"])
     .index("by_email", ["email"]),
+
+  // ── Job Search Tables ───────────────────────────────────────────
+
+  targetCompanies: defineTable({
+    userId: v.optional(v.string()),
+    name: v.string(),
+    website: v.optional(v.string()),
+    stage: v.optional(v.string()),
+    size: v.optional(v.string()),
+    industry: v.optional(v.string()),
+    location: v.optional(v.string()),
+    whyInterested: v.optional(v.string()),
+    fundingHistory: v.optional(v.string()),
+    recentNews: v.optional(v.string()),
+    challenges: v.optional(v.string()),
+    techStack: v.optional(v.string()),
+    intelBrief: v.optional(v.string()),
+    status: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_status", ["status"])
+    .index("by_userId", ["userId"]),
+
+  jobListings: defineTable({
+    userId: v.optional(v.string()),
+    companyId: v.optional(v.id("targetCompanies")),
+    companyName: v.string(),
+    title: v.string(),
+    url: v.optional(v.string()),
+    source: v.optional(v.string()),
+    jdText: v.optional(v.string()),
+    matchScore: v.optional(v.number()),
+    matchReason: v.optional(v.string()),
+    compensationRange: v.optional(v.string()),
+    remote: v.optional(v.boolean()),
+    location: v.optional(v.string()),
+    status: v.string(),
+    appliedAt: v.optional(v.number()),
+    responseAt: v.optional(v.number()),
+    notes: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_status", ["status"])
+    .index("by_companyId", ["companyId"])
+    .index("by_userId", ["userId"])
+    .index("by_matchScore", ["matchScore"]),
+
+  jobContacts: defineTable({
+    userId: v.optional(v.string()),
+    companyId: v.optional(v.id("targetCompanies")),
+    jobId: v.optional(v.id("jobListings")),
+    name: v.string(),
+    title: v.optional(v.string()),
+    company: v.optional(v.string()),
+    linkedinUrl: v.optional(v.string()),
+    email: v.optional(v.string()),
+    connectionDegree: v.optional(v.string()),
+    mutualConnections: v.optional(v.number()),
+    relationship: v.string(),
+    source: v.optional(v.string()),
+    notes: v.optional(v.string()),
+    lastContactedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_companyId", ["companyId"])
+    .index("by_jobId", ["jobId"])
+    .index("by_relationship", ["relationship"])
+    .index("by_userId", ["userId"]),
+
+  jobOutreach: defineTable({
+    userId: v.optional(v.string()),
+    contactId: v.id("jobContacts"),
+    jobId: v.optional(v.id("jobListings")),
+    channel: v.string(),
+    message: v.string(),
+    status: v.string(),
+    sentAt: v.optional(v.number()),
+    repliedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_contactId", ["contactId"])
+    .index("by_jobId", ["jobId"])
+    .index("by_status", ["status"])
+    .index("by_userId", ["userId"]),
+
+  jobResumes: defineTable({
+    userId: v.optional(v.string()),
+    jobId: v.id("jobListings"),
+    version: v.number(),
+    tailoredResumeText: v.optional(v.string()),
+    coverLetterText: v.optional(v.string()),
+    talkingPoints: v.optional(v.array(v.string())),
+    driveFileId: v.optional(v.string()),
+    driveUrl: v.optional(v.string()),
+    status: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_jobId", ["jobId"])
+    .index("by_userId", ["userId"]),
+
+  jobActivityLog: defineTable({
+    userId: v.optional(v.string()),
+    jobId: v.optional(v.id("jobListings")),
+    companyId: v.optional(v.id("targetCompanies")),
+    contactId: v.optional(v.id("jobContacts")),
+    type: v.string(),
+    details: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_jobId", ["jobId"])
+    .index("by_companyId", ["companyId"])
+    .index("by_userId", ["userId"])
+    .index("by_createdAt", ["createdAt"]),
 });
