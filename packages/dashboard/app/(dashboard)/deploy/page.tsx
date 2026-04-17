@@ -12,6 +12,7 @@ import type { BrandingConfig, ModelsConfig } from "@dynoclaw/shared";
 
 export interface WizardState {
   hostingType: "managed" | "self-hosted";
+  securityMode: "secured" | "full-power";
   gcpProjectId: string;
   gcpZone: string;
   vmName: string;
@@ -27,6 +28,7 @@ const STORAGE_KEY = "claw-deploy-wizard";
 
 const defaultState: WizardState = {
   hostingType: "managed",
+  securityMode: "secured",
   gcpProjectId: "__managed__",
   gcpZone: "us-central1-a",
   vmName: "openclaw-vm",

@@ -36,6 +36,7 @@ interface DeploymentRecord {
   status: string;
   branding: { botName: string; personality: string };
   models: { primary: string; fallbacks: string[] };
+  securityMode: "secured" | "full-power";
   deployedAt: number;
   lastHealthCheck: number | null;
   lastHealthStatus: string | null;
@@ -113,6 +114,16 @@ function DeploymentCard({ deployment }: { deployment: DeploymentRecord }) {
           <Badge variant="secondary" className={`text-xs ${statusColor(deployment.status)}`}>
             {deployment.status}
           </Badge>
+          <Badge
+            variant="secondary"
+            className={`text-xs ${
+              deployment.securityMode === "full-power"
+                ? "bg-yellow-500/20 text-yellow-400"
+                : "bg-green-500/20 text-green-400"
+            }`}
+          >
+            {deployment.securityMode === "full-power" ? "Full Power" : "Secured"}
+          </Badge>
         </div>
         <span className="text-xs text-muted-foreground">
           {formatDate(deployment.deployedAt)}
@@ -143,6 +154,14 @@ function DeploymentCard({ deployment }: { deployment: DeploymentRecord }) {
         <div className="flex justify-between">
           <span className="text-muted-foreground">Model</span>
           <span className="truncate ml-2">{deployment.models.primary.split("/").pop()}</span>
+        </div>
+        <div className="flex justify-between col-span-2">
+          <span className="text-muted-foreground">Security</span>
+          <span className={deployment.securityMode === "full-power" ? "text-yellow-400" : "text-green-400"}>
+            {deployment.securityMode === "full-power"
+              ? "Full Power — no approvals, open Telegram"
+              : "Secured — approvals required, paired Telegram"}
+          </span>
         </div>
       </div>
 

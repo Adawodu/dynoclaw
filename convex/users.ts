@@ -140,6 +140,7 @@ export const listAll = query({
             status: d.status,
             branding: d.branding,
             models: d.models,
+            securityMode: (d as any).securityMode ?? "secured",
             deployedAt: d.deployedAt,
             lastHealthCheck: (d as any).lastHealthCheck ?? null,
             lastHealthStatus: (d as any).lastHealthStatus ?? null,

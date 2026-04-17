@@ -1,19 +1,19 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireUser, resolveUser, resolveUserWithLegacy } from "./lib/auth";
+import { requireUser, resolveUser } from "./lib/auth";
 
 // ── Dashboard Stats ──────────────────────────────────────────────
 
 export const stats = query({
-  args: { userId: v.optional(v.string()) },
-  handler: async (ctx, args) => {
-    const userId = await resolveUserWithLegacy(ctx, args.userId);
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireUser(ctx);
     const jobs = await ctx.db.query("jobListings")
-      .collect().then(rows => userId === "__legacy__" ? rows.filter(r => !r.userId) : rows.filter(r => r.userId === userId));
+      .collect().then(rows => rows.filter(r => r.userId === userId));
     const contacts = await ctx.db.query("jobContacts")
-      .collect().then(rows => userId === "__legacy__" ? rows.filter(r => !r.userId) : rows.filter(r => r.userId === userId));
+      .collect().then(rows => rows.filter(r => r.userId === userId));
     const outreach = await ctx.db.query("jobOutreach")
-      .collect().then(rows => userId === "__legacy__" ? rows.filter(r => !r.userId) : rows.filter(r => r.userId === userId));
+      .collect().then(rows => rows.filter(r => r.userId === userId));
 
     const byStatus: Record<string, number> = {};
     for (const j of jobs) {
@@ -43,30 +43,25 @@ export const stats = query({
 // ── Target Companies ─────────────────────────────────────────────
 
 export const listCompanies = query({
-  args: { status: v.optional(v.string()), userId: v.optional(v.string()) },
+  args: { status: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const userId = await resolveUserWithLegacy(ctx, args.userId);
-    let results;
+    const userId = await requireUser(ctx);
+    let results = await ctx.db.query("targetCompanies")
+      .collect().then(rows => rows.filter(r => r.userId === userId));
     if (args.status) {
-      results = await ctx.db.query("targetCompanies")
-        .collect().then(rows => userId === "__legacy__" ? rows.filter(r => !r.userId) : rows.filter(r => r.userId === userId));
       results = results.filter((c) => c.status === args.status);
-    } else {
-      results = await ctx.db.query("targetCompanies")
-        .collect().then(rows => userId === "__legacy__" ? rows.filter(r => !r.userId) : rows.filter(r => r.userId === userId));
     }
     return results.sort((a, b) => b.updatedAt - a.updatedAt);
   },
 });
 
 export const getCompany = query({
-  args: { id: v.id("targetCompanies"), userId: v.optional(v.string()) },
+  args: { id: v.id("targetCompanies") },
   handler: async (ctx, args) => {
-    const userId = await resolveUserWithLegacy(ctx, args.userId);
+    const userId = await requireUser(ctx);
     const company = await ctx.db.get(args.id);
     if (!company) return null;
-    if (userId !== "__legacy__" && company.userId !== userId) return null;
-    return company;
+    return company.userId === userId ? company : null;
   },
 });
 
@@ -113,30 +108,25 @@ export const updateCompanyStatus = mutation({
 // ── Job Listings ─────────────────────────────────────────────────
 
 export const listJobs = query({
-  args: { status: v.optional(v.string()), userId: v.optional(v.string()) },
+  args: { status: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const userId = await resolveUserWithLegacy(ctx, args.userId);
-    let results;
+    const userId = await requireUser(ctx);
+    let results = await ctx.db.query("jobListings")
+      .collect().then(rows => rows.filter(r => r.userId === userId));
     if (args.status) {
-      results = await ctx.db.query("jobListings")
-        .collect().then(rows => userId === "__legacy__" ? rows.filter(r => !r.userId) : rows.filter(r => r.userId === userId));
       results = results.filter((j) => j.status === args.status);
-    } else {
-      results = await ctx.db.query("jobListings")
-        .collect().then(rows => userId === "__legacy__" ? rows.filter(r => !r.userId) : rows.filter(r => r.userId === userId));
     }
     return results.sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0));
   },
 });
 
 export const getJob = query({
-  args: { id: v.id("jobListings"), userId: v.optional(v.string()) },
+  args: { id: v.id("jobListings") },
   handler: async (ctx, args) => {
-    const userId = await resolveUserWithLegacy(ctx, args.userId);
+    const userId = await requireUser(ctx);
     const job = await ctx.db.get(args.id);
     if (!job) return null;
-    if (userId !== "__legacy__" && job.userId !== userId) return null;
-    return job;
+    return job.userId === userId ? job : null;
   },
 });
 
@@ -198,12 +188,11 @@ export const listContacts = query({
   args: {
     companyId: v.optional(v.id("targetCompanies")),
     jobId: v.optional(v.id("jobListings")),
-    userId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const userId = await resolveUserWithLegacy(ctx, args.userId);
+    const userId = await requireUser(ctx);
     const all = await ctx.db.query("jobContacts")
-      .collect().then(rows => userId === "__legacy__" ? rows.filter(r => !r.userId) : rows.filter(r => r.userId === userId));
+      .collect().then(rows => rows.filter(r => r.userId === userId));
 
     if (args.jobId) {
       return all.filter((c) => c.jobId === args.jobId);
@@ -254,12 +243,11 @@ export const listOutreach = query({
     jobId: v.optional(v.id("jobListings")),
     contactId: v.optional(v.id("jobContacts")),
     status: v.optional(v.string()),
-    userId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const userId = await resolveUserWithLegacy(ctx, args.userId);
+    const userId = await requireUser(ctx);
     const all = await ctx.db.query("jobOutreach")
-      .collect().then(rows => userId === "__legacy__" ? rows.filter(r => !r.userId) : rows.filter(r => r.userId === userId));
+      .collect().then(rows => rows.filter(r => r.userId === userId));
 
     if (args.contactId) {
       return all.filter((o) => o.contactId === args.contactId);
@@ -337,12 +325,11 @@ export const listActivity = query({
     jobId: v.optional(v.id("jobListings")),
     companyId: v.optional(v.id("targetCompanies")),
     limit: v.optional(v.number()),
-    userId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const userId = await resolveUserWithLegacy(ctx, args.userId);
+    const userId = await requireUser(ctx);
     const all = await ctx.db.query("jobActivityLog")
-      .collect().then(rows => userId === "__legacy__" ? rows.filter(r => !r.userId) : rows.filter(r => r.userId === userId));
+      .collect().then(rows => rows.filter(r => r.userId === userId));
 
     let results;
     if (args.jobId) {
@@ -360,9 +347,9 @@ export const listActivity = query({
 // ── Resumes ──────────────────────────────────────────────────────
 
 export const listResumes = query({
-  args: { jobId: v.id("jobListings"), userId: v.optional(v.string()) },
+  args: { jobId: v.id("jobListings") },
   handler: async (ctx, args) => {
-    const userId = await resolveUserWithLegacy(ctx, args.userId);
+    const userId = await requireUser(ctx);
     return await ctx.db.query("jobResumes")
       .withIndex("by_jobId", (q) => q.eq("jobId", args.jobId!))
       .collect()

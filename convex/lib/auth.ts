@@ -63,23 +63,6 @@ export async function resolveUserOrNull(
   return identity?.subject ?? null;
 }
 
-/**
- * Resolve userId with legacy fallback. Returns:
- * - Explicit userId if provided
- * - Auth userId if authenticated
- * - "__legacy__" sentinel if neither (signals: return unscoped/ownerless records)
- * Used by queries that serve both multi-tenant dashboard AND single-tenant VM canvases.
- */
-export async function resolveUserWithLegacy(
-  ctx: QueryCtx | MutationCtx | ActionCtx,
-  explicitUserId?: string
-): Promise<string> {
-  if (explicitUserId) return explicitUserId;
-  const identity = await ctx.auth.getUserIdentity();
-  if (identity) return identity.subject;
-  return "__legacy__";
-}
-
 const ADMIN_SUBJECTS = (process.env.ADMIN_USER_IDS ?? "").split(",").filter(Boolean);
 
 export async function requireAdmin(

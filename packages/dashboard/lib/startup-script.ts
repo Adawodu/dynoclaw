@@ -7,7 +7,9 @@ export function generateWebStartupScript(config: {
   models: { primary: string; fallbacks: string[] };
   enabledPlugins: string[];
   enabledSkills: string[];
+  securityMode?: "secured" | "full-power";
 }): string {
+  const isFullPower = config.securityMode === "full-power";
   // Derive all secret names from the plugin registry + platform secrets
   const registrySecrets = getAllSecretNames(); // all plugins, not just enabled
   const allSecretNames = [
@@ -82,25 +84,41 @@ curl -sfL "${repoBase}/plugins/${p}/openclaw.plugin.json" -o "\${DEST}/openclaw.
     tools: {
       profile: "full",
     },
-    // Disable exec approval gate — agent can run commands without manual approval.
-    // Security is handled at the network layer (no public IP, IAP-only access).
+    // Security mode controls approval gates:
+    // - Secured: exec and plugin actions require user approval via Telegram
+    // - Full Power: no approvals needed, agent runs autonomously
     approvals: {
-      exec: { enabled: false },
-      plugin: { enabled: false },
+      exec: { enabled: !isFullPower },
+      plugin: { enabled: !isFullPower },
     },
     channels: {
       telegram: {
         enabled: true,
-        dmPolicy: "open",
+        // Secured: only paired users can DM the bot
+        // Full Power: anyone can DM the bot
+        dmPolicy: isFullPower ? "open" : "paired",
         botToken: "${TELEGRAM_BOT_TOKEN}",
-        allowFrom: ["*"],
-        groupPolicy: "open",
+        allowFrom: isFullPower ? ["*"] : [],
+        groupPolicy: isFullPower ? "open" : "paired",
       },
     },
     gateway: {
       mode: "local",
       bind: "loopback",
       auth: { token: "${GATEWAY_TOKEN}" },
+      controlUi: {
+        allowedOrigins: [
+          "http://localhost:18789",
+          "http://127.0.0.1:18789",
+          "https://dynoclaw-tunnel-broker-108022247971.us-central1.run.app",
+          "https://dynoclaw-tunnel-broker-3sal2kefpq-uc.a.run.app",
+          "https://www.dynoclaw.com",
+        ],
+        // Disable device pairing for web UI — rely on token-only auth.
+        // The DynoClaw tunnel broker handles auth via JWT; device pairing
+        // would block every new browser session from connecting.
+        dangerouslyDisableDeviceAuth: true,
+      },
     },
     plugins: {
       allow: config.enabledPlugins,
@@ -217,15 +235,23 @@ else
   echo "==> OpenClaw already at \${DESIRED_VERSION}, skipping upgrade"
 fi
 
-# ── Grant SA secret access from inside the project ───────────────
-# (Done here instead of via external API to respect org policies like Domain Restricted Sharing)
+# ── Grant SA secret access scoped to this VM's secrets ───────────
+# IAM condition restricts access to secrets prefixed with this VM's name.
+# This prevents cross-tenant secret access in multi-tenant managed projects.
 SA_EMAIL="\$(curl -s -H 'Metadata-Flavor: Google' http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email 2>/dev/null || true)"
 if [ -n "\${SA_EMAIL}" ]; then
-  echo "==> Granting secret access to \${SA_EMAIL}..."
+  echo "==> Granting scoped secret access to \${SA_EMAIL} for \${VM_NAME}..."
+  # Scoped binding: only secrets matching <vmname>--*
   gcloud projects add-iam-policy-binding "${config.gcpProjectId}" \\
     --member="serviceAccount:\${SA_EMAIL}" \\
     --role="roles/secretmanager.secretAccessor" \\
-    --condition=None \\
+    --condition="expression=resource.name.startsWith(\\"projects/${config.gcpProjectId}/secrets/\\"+\\"\${VM_NAME}--\\"),title=\${VM_NAME}-secrets" \\
+    --quiet 2>/dev/null || true
+  # Also allow access to non-namespaced secrets (legacy fallback for shared keys)
+  gcloud projects add-iam-policy-binding "${config.gcpProjectId}" \\
+    --member="serviceAccount:\${SA_EMAIL}" \\
+    --role="roles/secretmanager.secretAccessor" \\
+    --condition="expression=!resource.name.contains(\\"--\\"),title=\${VM_NAME}-global-secrets" \\
     --quiet 2>/dev/null || true
 fi
 
@@ -278,6 +304,17 @@ cat > /root/.openclaw/openclaw.json <<CFGEOF
 ${configJsonStr}
 CFGEOF
 echo "==> Configuration written"
+
+# Store gateway token in Secret Manager so the DynoClaw dashboard can pass it to the AI Console
+echo "==> Storing gateway token in Secret Manager..."
+echo -n "\${GATEWAY_TOKEN}" | gcloud secrets create "\${VM_NAME}--gateway-token" \
+  --project="\${PROJECT_ID}" \
+  --replication-policy=automatic \
+  --labels="dynoclaw-vm=\${VM_NAME//[^a-z0-9_-]/_},managed-by=dynoclaw" \
+  --data-file=- 2>/dev/null || \
+echo -n "\${GATEWAY_TOKEN}" | gcloud secrets versions add "\${VM_NAME}--gateway-token" \
+  --project="\${PROJECT_ID}" \
+  --data-file=- 2>/dev/null || true
 
 # ── Write auth profiles ─────────────────────────────────────────
 echo "==> Writing auth profiles..."

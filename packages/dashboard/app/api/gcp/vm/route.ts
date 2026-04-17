@@ -77,6 +77,7 @@ export async function POST(req: NextRequest) {
           models: deployment.models,
           enabledPlugins,
           enabledSkills,
+          securityMode: (deployment as Record<string, unknown>).securityMode as "secured" | "full-power" | undefined,
         });
 
         await setInstanceMetadata(gcpToken, gcpProjectId, gcpZone, vmName, [
