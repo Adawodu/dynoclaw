@@ -1,42 +1,42 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { Cloud, Server, Puzzle, Zap, Shield, Mail } from "lucide-react";
+import { MessageSquare, BarChart3, Plug, Calendar, Shield, Sparkles } from "lucide-react";
 
 const features = [
   {
-    icon: Server,
-    title: "Managed Hosting",
+    icon: MessageSquare,
+    title: "Talk to It on Telegram",
     description:
-      "We handle the infrastructure. Your AI teammate runs on an isolated VM — deployed, monitored, and maintained by DynoClaw.",
+      "Message your AI teammate from your phone or laptop. Ask it to draft an email, check your pipeline, or generate a report. It responds in seconds.",
   },
   {
-    icon: Cloud,
-    title: "Self-Hosted Option",
+    icon: Plug,
+    title: "Connects to Your Tools",
     description:
-      "Deploy to your own GCP project for full data ownership. Respects org policies including Domain Restricted Sharing.",
+      "CRM (Clarify.ai, HubSpot, Zoho), social media (Postiz), newsletters (Beehiiv), GitHub, Gmail — 17+ plugins out of the box.",
   },
   {
-    icon: Puzzle,
-    title: "Plugin Ecosystem",
+    icon: Calendar,
+    title: "Runs on Autopilot",
     description:
-      "17+ plugins — Postiz, Beehiiv, Gmail, GitHub, HubSpot, Zoho, image/video generation, and more. Extend with custom plugins.",
+      "Schedule skills to run automatically — daily briefings, weekly content calendars, engagement reports. Your bot works while you sleep.",
   },
   {
-    icon: Zap,
-    title: "Skill Scheduling",
+    icon: BarChart3,
+    title: "Manages Your Pipeline",
     description:
-      "Cron-powered skills that run automatically — content generation, research, reporting, privacy enforcement on your schedule.",
+      "CRM auto-imports contacts from email. Your bot tracks deals, drafts follow-ups, and sends you a morning pipeline digest.",
   },
   {
     icon: Shield,
-    title: "Enterprise Security",
+    title: "Private & Secure",
     description:
-      "Isolated VM per customer. API keys in GCP Secret Manager (AES-256). Dedicated service accounts with minimal permissions. Clerk auth.",
+      "Your data runs in an isolated cloud VM with no public IP. API keys in encrypted Secret Manager. You choose who can talk to your bot.",
   },
   {
-    icon: Mail,
-    title: "Email & Communication",
+    icon: Sparkles,
+    title: "49,000+ Skills on ClawHub",
     description:
-      "Gmail drafts via DynoSist, dedicated agent inbox via AgentMail, privacy enforcement via DynoClux. All channels in one bot.",
+      "Need something specific? Your bot can install skills from ClawHub — the largest AI skill marketplace. Just ask it on Telegram.",
   },
 ];
 
@@ -45,28 +45,26 @@ export function Features() {
     <section id="features" className="mx-auto max-w-6xl px-4 py-24">
       <div className="mb-16 text-center">
         <h2 className="text-3xl font-bold sm:text-4xl">
-          Everything you need for an{" "}
-          <span className="gradient-brand-text">AI-powered workflow</span>
+          One bot that{" "}
+          <span className="gradient-brand-text">actually does the work</span>
         </h2>
         <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-          Managed or self-hosted. DynoClaw combines deployment, orchestration,
-          and enterprise controls into a single platform.
+          Not another chatbot. An AI teammate that manages your CRM, drafts emails,
+          posts content, and runs your operations.
         </p>
       </div>
 
-      <div className="grid gap-6 sm:grid-cols-2">
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {features.map((f) => (
           <Card key={f.title} className="border-border/50 bg-card/50 backdrop-blur">
-            <CardContent className="flex gap-4 p-6">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                <f.icon className="h-6 w-6 text-primary" />
+            <CardContent className="p-6">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 mb-4">
+                <f.icon className="h-5 w-5 text-primary" />
               </div>
-              <div>
-                <h3 className="font-semibold">{f.title}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {f.description}
-                </p>
-              </div>
+              <h3 className="font-semibold">{f.title}</h3>
+              <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+                {f.description}
+              </p>
             </CardContent>
           </Card>
         ))}

@@ -124,11 +124,11 @@ export function Pricing() {
     <section id="pricing" className="mx-auto max-w-6xl px-4 py-24">
       <div className="mb-16 text-center">
         <h2 className="text-3xl font-bold sm:text-4xl">
-          Simple, transparent{" "}
-          <span className="gradient-brand-text">pricing</span>
+          Start free.{" "}
+          <span className="gradient-brand-text">Scale when ready.</span>
         </h2>
         <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-          Managed or self-hosted. Start with a 14-day free trial.
+          14-day free trial on every plan. No credit card required. Cancel anytime.
         </p>
       </div>
 
@@ -181,7 +181,7 @@ export function Pricing() {
 
               <div className="mt-8">
                 {plan.cta === "Contact Sales" ? (
-                  <a href="mailto:hello@dynoclaw.com">
+                  <a href="/enterprise">
                     <Button variant="outline" className="w-full">
                       {plan.cta}
                     </Button>
