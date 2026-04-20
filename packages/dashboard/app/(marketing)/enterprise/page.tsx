@@ -49,7 +49,7 @@ export default function EnterprisePage() {
           </p>
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
             <a
-              href="https://calendly.com/bayo-parallelscore/maio-diagnostic"
+              href="https://cal.com/adawodu/dynoclaw"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-8 py-3.5 text-sm font-semibold text-white shadow-lg hover:bg-blue-500 transition-colors"
@@ -227,7 +227,7 @@ export default function EnterprisePage() {
           </p>
           <div className="mt-10">
             <a
-              href="https://calendly.com/bayo-parallelscore/maio-diagnostic"
+              href="https://cal.com/adawodu/dynoclaw"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-8 py-4 text-base font-semibold text-white shadow-lg hover:bg-blue-500 transition-colors"
@@ -237,7 +237,7 @@ export default function EnterprisePage() {
             </a>
           </div>
           <p className="mt-6 text-sm text-slate-500">
-            ParallelScore + DynoClaw | bayo@parallelscore.com
+            ParallelScore + DynoClaw
           </p>
         </div>
       </section>
