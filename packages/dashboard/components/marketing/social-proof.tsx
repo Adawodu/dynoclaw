@@ -1,26 +1,22 @@
-import { Cloud, MessageCircle, Database } from "lucide-react";
+import { Shield, Clock, Bot, Blocks } from "lucide-react";
 
-const logos = [
-  { icon: Cloud, label: "Google Cloud" },
-  { icon: MessageCircle, label: "Telegram" },
-  { icon: Database, label: "Convex" },
+const stats = [
+  { icon: Clock, value: "5 min", label: "to deploy" },
+  { icon: Bot, value: "24/7", label: "always on" },
+  { icon: Blocks, value: "17+", label: "plugins" },
+  { icon: Shield, value: "Private", label: "cloud — your data" },
 ];
 
 export function SocialProof() {
   return (
-    <section className="border-y border-border/50 py-16">
-      <div className="mx-auto max-w-4xl px-4 text-center">
-        <p className="mb-8 text-sm font-medium uppercase tracking-wider text-muted-foreground">
-          Built on industry-leading infrastructure
-        </p>
-        <div className="flex items-center justify-center gap-12">
-          {logos.map((l) => (
-            <div
-              key={l.label}
-              className="flex flex-col items-center gap-2 text-muted-foreground"
-            >
-              <l.icon className="h-8 w-8" />
-              <span className="text-xs">{l.label}</span>
+    <section className="border-y border-border/50 py-12">
+      <div className="mx-auto max-w-4xl px-4">
+        <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
+          {stats.map((s) => (
+            <div key={s.label} className="flex flex-col items-center gap-2 text-center">
+              <s.icon className="h-5 w-5 text-primary" />
+              <p className="text-2xl font-bold text-foreground">{s.value}</p>
+              <p className="text-xs text-muted-foreground">{s.label}</p>
             </div>
           ))}
         </div>
