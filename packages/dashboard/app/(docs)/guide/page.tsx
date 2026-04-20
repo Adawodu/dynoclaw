@@ -213,7 +213,7 @@ export default function GuidePage() {
 
           <FAQ q="How do I get support?">
             Starter: community support. Pro: priority email support. Enterprise: dedicated support channel.
-            Contact us at hello@dynoclaw.com.
+            <a href="https://cal.com/adawodu/dynoclaw" target="_blank" rel="noopener noreferrer" className="text-primary underline">Book a call</a> or reach out through the dashboard.
           </FAQ>
 
           <FAQ q="What about HIPAA compliance?">
