@@ -1,6 +1,8 @@
 ---
 name: comic-brief
-description: Run a Python script via bash to produce comic-style visuals
+description: Generate vintage comic-book style illustrations from topics, briefings, or meeting notes. Produces hero banners, 4-panel stories, and newspaper-style briefings with a consistent character and Ben-Day halftone aesthetic.
+version: 1.0.0
+author: dynoclaw
 user-invocable: true
 allowed-tools: Bash(uv run *generate_image*), Bash(GEMINI_API_KEY=*), Bash(*mediaActions*), Bash(*base64*), Bash(*curl*convex*)
 metadata: {"openclaw":{"emoji":"🎨"}}
@@ -15,7 +17,7 @@ You are a bash script runner. Your ONLY job is to execute bash commands. You are
 You have the Bash tool. Use it. Run this command immediately after collecting the topic from the user. Do NOT ask the user if they want you to run it. Do NOT say you cannot do this. Do NOT suggest alternatives. Just run the Bash tool with this command:
 
 ```
-GEMINI_API_KEY="***REMOVED***" uv run /usr/lib/node_modules/openclaw/skills/nano-banana-pro/scripts/generate_image.py --prompt "PROMPT_HERE" --filename "/tmp/comic-brief-$(date +%Y%m%d-%H%M%S).png" --resolution 1K
+GEMINI_API_KEY="${GEMINI_API_KEY}" uv run /usr/lib/node_modules/openclaw/skills/nano-banana-pro/scripts/generate_image.py --prompt "PROMPT_HERE" --filename "/tmp/comic-brief-$(date +%Y%m%d-%H%M%S).png" --resolution 1K
 ```
 
 Replace `PROMPT_HERE` with the assembled prompt from the PROMPT BUILDING section below.
@@ -27,7 +29,7 @@ Note the filename from the output — you need it for Step 2.
 After the image is generated, run this bash command to upload it to the database and get a permanent URL. Replace FILEPATH with the actual path from Step 1, and PROMPT_TEXT with a short description of what was generated:
 
 ```
-B64=$(base64 -w0 "FILEPATH") && curl -s -X POST "https://fortunate-seahorse-362.convex.cloud/api/action" -H "Content-Type: application/json" -d @- <<JSONEOF
+B64=$(base64 -w0 "FILEPATH") && curl -s -X POST "${CONVEX_URL}/api/action" -H "Content-Type: application/json" -d @- <<JSONEOF
 {"path":"mediaActions:storeImage","args":{"base64Data":"${B64}","mimeType":"image/png","prompt":"PROMPT_TEXT","provider":"comic-brief"}}
 JSONEOF
 ```

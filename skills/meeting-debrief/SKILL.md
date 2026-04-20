@@ -1,6 +1,8 @@
 ---
 name: meeting-debrief
 description: Process meeting transcripts to extract action items, recommendations, key topics, relationships, and generate Excalidraw visualizations. Use when the user shares a meeting transcript, recording notes, or conversation summary and wants a structured debrief with visual output.
+version: 1.0.0
+author: dynoclaw
 user-invocable: true
 metadata: {"openclaw":{"emoji":"🎙️"}}
 ---
