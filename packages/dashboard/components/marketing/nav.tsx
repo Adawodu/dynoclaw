@@ -11,6 +11,7 @@ const fallbackLinks = [
   { href: "/#features", label: "Features" },
   { href: "/#how-it-works", label: "How It Works" },
   { href: "/#pricing", label: "Pricing" },
+  { href: "/enterprise", label: "Enterprise" },
   { href: "/guide", label: "Guide" },
 ];
 

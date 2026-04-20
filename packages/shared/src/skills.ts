@@ -130,6 +130,15 @@ export const SKILL_REGISTRY: SkillMeta[] = [
     requiredPlugins: [],
   },
   {
+    id: "workflow-audit",
+    name: "Workflow Audit",
+    description:
+      "Conduct operational audits — identify friction, quantify waste, and produce automation blueprints with ROI projections",
+    cron: null,
+    cronDescription: "On-demand only",
+    requiredPlugins: [],
+  },
+  {
     id: "metric-health-echo",
     name: "MetricHealth Echo",
     description:
