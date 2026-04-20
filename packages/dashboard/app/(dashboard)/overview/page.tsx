@@ -13,7 +13,7 @@ import { SkillScheduleCard } from "@/components/skill-schedule-card";
 import { RecentJobsCard } from "@/components/recent-jobs-card";
 import { BotHealthBanner } from "@/components/bot-health-banner";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Rocket, CheckCircle2, XCircle, X } from "lucide-react";
+import { Rocket, CheckCircle2, XCircle, X, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { useHealthPoll } from "@/lib/use-health-poll";
 
@@ -196,6 +196,15 @@ export default function OverviewPage() {
       {/* Recent Jobs Card */}
       {jobs && <RecentJobsCard jobs={jobs} />}
 
+      {/* Value Delivered */}
+      {skills && plugins && deployment.status === "running" && (
+        <ValueDelivered
+          deployedAt={deployment.deployedAt}
+          enabledSkills={skills.filter((s: { enabled: boolean }) => s.enabled)}
+          enabledPlugins={plugins.filter((p: { enabled: boolean }) => p.enabled)}
+        />
+      )}
+
       {/* Cost Cards */}
       {snapshot ? (
         <CostCards snapshot={snapshot} />
@@ -210,5 +219,71 @@ export default function OverviewPage() {
         </Card>
       )}
     </div>
+  );
+}
+
+function ValueDelivered({
+  deployedAt,
+  enabledSkills,
+  enabledPlugins,
+}: {
+  deployedAt: number;
+  enabledSkills: { skillId: string; cronOverride?: string }[];
+  enabledPlugins: { pluginId: string }[];
+}) {
+  const daysSinceDeployment = Math.max(1, Math.floor((Date.now() - deployedAt) / 86_400_000));
+  const weeksSinceDeployment = Math.max(1, Math.floor(daysSinceDeployment / 7));
+
+  // Estimate scheduled skill runs based on cron frequency
+  // Daily skills: 1/day, weekly skills: 1/week, on-demand: estimate 2/week
+  const scheduledSkillRuns = enabledSkills.reduce((total, s) => {
+    // Simple heuristic based on skill type
+    const cronLike = s.cronOverride ?? "";
+    if (cronLike.includes("* * *")) return total + daysSinceDeployment; // daily
+    if (cronLike.includes("* *")) return total + weeksSinceDeployment; // weekly
+    return total + weeksSinceDeployment * 2; // on-demand estimate
+  }, 0);
+
+  // Estimate on-demand interactions (conservative: 3/day per plugin)
+  const pluginInteractions = enabledPlugins.length * daysSinceDeployment * 3;
+
+  const totalWorkflows = scheduledSkillRuns + pluginInteractions;
+
+  // Conservative estimate: each workflow saves 5-15 minutes of manual work
+  const avgMinutesSaved = 8;
+  const hoursSaved = Math.round((totalWorkflows * avgMinutesSaved) / 60);
+
+  // Dollar value: $45/hr blended ops rate
+  const dollarsSaved = hoursSaved * 45;
+
+  return (
+    <Card className="border-primary/20 bg-primary/5">
+      <CardHeader className="pb-3">
+        <div className="flex items-center gap-2">
+          <TrendingUp className="h-5 w-5 text-primary" />
+          <CardTitle className="text-base">Value Delivered</CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-3 gap-4 text-center">
+          <div>
+            <p className="text-2xl font-bold text-foreground">{totalWorkflows.toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground">Workflows run</p>
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-foreground">~{hoursSaved}</p>
+            <p className="text-xs text-muted-foreground">Hours saved</p>
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-primary">${dollarsSaved.toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground">Estimated savings</p>
+          </div>
+        </div>
+        <p className="mt-3 text-xs text-muted-foreground text-center">
+          Based on {daysSinceDeployment} days active, {enabledSkills.length} skills, {enabledPlugins.length} plugins.
+          Estimated at $45/hr blended ops rate.
+        </p>
+      </CardContent>
+    </Card>
   );
 }
