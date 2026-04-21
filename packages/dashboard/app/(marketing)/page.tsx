@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Hero } from "@/components/marketing/hero";
 import { Features } from "@/components/marketing/features";
 import { HowItWorks } from "@/components/marketing/how-it-works";
+import { BeforeAfter } from "@/components/marketing/before-after";
+import { Testimonials } from "@/components/marketing/testimonials";
 import { Pricing } from "@/components/marketing/pricing";
 import { SocialProof } from "@/components/marketing/social-proof";
 
@@ -24,7 +26,9 @@ export default function LandingPage() {
       <Hero />
       <SocialProof />
       <Features />
+      <BeforeAfter />
       <HowItWorks />
+      <Testimonials />
       <Pricing />
       <EnterpriseCTA />
     </>

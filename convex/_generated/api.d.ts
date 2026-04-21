@@ -25,6 +25,7 @@ import type * as knowledge from "../knowledge.js";
 import type * as knowledgeActions from "../knowledgeActions.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_embeddings from "../lib/embeddings.js";
+import type * as marketingImages from "../marketingImages.js";
 import type * as media from "../media.js";
 import type * as mediaActions from "../mediaActions.js";
 import type * as navLinks from "../navLinks.js";
@@ -63,6 +64,7 @@ declare const fullApi: ApiFromModules<{
   knowledgeActions: typeof knowledgeActions;
   "lib/auth": typeof lib_auth;
   "lib/embeddings": typeof lib_embeddings;
+  marketingImages: typeof marketingImages;
   media: typeof media;
   mediaActions: typeof mediaActions;
   navLinks: typeof navLinks;

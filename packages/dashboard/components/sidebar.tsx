@@ -71,6 +71,7 @@ const adminToolsNav: NavItem[] = [
 const adminPlatformNav: NavItem[] = [
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/pricing", label: "Pricing", icon: ShieldCheck },
+  { href: "/admin/marketing", label: "Marketing", icon: Image },
   { href: "/admin/cms", label: "CMS", icon: FileText },
   { href: "/webinar-admin", label: "Webinar", icon: Presentation },
 ];
