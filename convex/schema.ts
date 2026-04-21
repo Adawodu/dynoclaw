@@ -193,6 +193,16 @@ export default defineSchema({
     .index("by_deploymentId", ["deploymentId"])
     .index("by_userId_status", ["userId", "status"]),
 
+  // ── Marketing assets ──────────────────────────────────────────────
+
+  marketingImages: defineTable({
+    slot: v.string(),
+    storageId: v.id("_storage"),
+    url: v.string(),
+    alt: v.string(),
+    updatedAt: v.number(),
+  }).index("by_slot", ["slot"]),
+
   // ── CMS tables ────────────────────────────────────────────────────
 
   cmsPages: defineTable({
